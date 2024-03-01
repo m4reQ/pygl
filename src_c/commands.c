@@ -3,11 +3,51 @@
 #include "utility.h"
 #include "enum.h"
 
-// GL.glBlendFunc(GL.GL_SRC_ALPHA, GL.GL_ONE_MINUS_SRC_ALPHA)
-// GL.glDepthFunc(GL.GL_LEQUAL)
-// GL.glPolygonMode(GL.GL_FRONT_AND_BACK, GL.GL_FILL)
-// GL.glPointSize(4.0)
-// GL.glClearColor(0.0, 0.0, 0.0, 1.0)
+static PyObject* py_blend_func(PyObject* Py_UNUSED(self), PyObject* args)
+{
+    GLenum src = 0, dst = 0;
+
+    if (!PyArg_ParseTuple(args, "II", &src, &dst))
+        return NULL;
+
+    glBlendFunc(src, dst);
+    Py_RETURN_NONE;
+}
+
+static PyObject* py_polygon_mode(PyObject* Py_UNUSED(self), PyObject* args)
+{
+    GLenum face = 0, mode = 0;
+
+    if (!PyArg_ParseTuple(args, "II", &face, &mode))
+        return NULL;
+
+    glPolygonMode(face, mode);
+    Py_RETURN_NONE;
+}
+
+static PyObject* py_depth_func(PyObject* Py_UNUSED(self), PyObject* func)
+{
+    ThrowIf(
+        !PyLong_Check(func),
+        PyExc_TypeError,
+        "Depth func has to be of type int.",
+        NULL);
+
+    glDepthFunc(PyLong_AsUnsignedLong(func));
+    Py_RETURN_NONE;
+}
+
+static PyObject* py_point_size(PyObject* Py_UNUSED(self), PyObject* size)
+{
+    ThrowIf(
+        !PyFloat_Check(size),
+        PyExc_TypeError,
+        "Point size has to be of type float.",
+        NULL);
+
+    glPointSize((GLfloat)PyFloat_AS_DOUBLE(size));
+    Py_RETURN_NONE;
+}
 
 static PyObject* py_cull_face(PyObject* Py_UNUSED(self), PyObject* face)
 {
@@ -60,13 +100,16 @@ static PyObject* py_enable(PyObject* Py_UNUSED(self), PyObject* cap)
 }
 
 static PyMethodDef moduleMethods[] = {
+    {"polygon_mode", py_polygon_mode, METH_VARARGS, NULL},
+    {"depth_func", py_depth_func, METH_O, NULL},
+    {"point_size", py_point_size, METH_O, NULL},
     {"cull_face", py_cull_face, METH_O, NULL},
     {"front_face", py_front_face, METH_O, NULL},
     {"enable", py_enable, METH_O, NULL},
     {"hint", py_hint, METH_VARARGS, NULL},
+    {"blend_func", py_blend_func, METH_VARARGS, NULL},
     {0},
 };
-
 static PyModuleDef moduleDef = {
     PyModuleDef_HEAD_INIT,
     .m_name = "pygl.commands",
@@ -136,6 +179,40 @@ static EnumValue enableValues[] = {
     {"PROGRAM_POINT_SIZE", GL_PROGRAM_POINT_SIZE},
     {0},
 };
+static EnumValue depthFuncValues[] = {
+    {"NEVER", GL_NEVER},
+    {"LESS", GL_LESS},
+    {"EQUAL", GL_EQUAL},
+    {"LEQUAL", GL_LEQUAL},
+    {"GREATER", GL_GREATER},
+    {"NOTEQUAL", GL_NOTEQUAL},
+    {"GEQUAL", GL_GEQUAL},
+    {"ALWAYS", GL_ALWAYS},
+    {0},
+};
+static EnumValue polygonModeValues[] = {
+    {"FILL", GL_FILL},
+    {"POINT", GL_POINT},
+    {"LINE", GL_LINE},
+    {0},
+};
+static EnumValue blendFuncValues[] = {
+    {"ZERO", GL_ZERO},
+    {"ONE", GL_ONE},
+    {"SRC_COLOR", GL_SRC_COLOR},
+    {"ONE_MINUS_SRC_COLOR", GL_ONE_MINUS_SRC_COLOR},
+    {"DST_COLOR", GL_DST_COLOR},
+    {"ONE_MINUS_DST_COLOR", GL_ONE_MINUS_DST_COLOR},
+    {"SRC_ALPHA", GL_SRC_ALPHA},
+    {"ONE_MINUS_SRC_ALPHA", GL_ONE_MINUS_SRC_ALPHA},
+    {"DST_ALPHA", GL_DST_ALPHA},
+    {"ONE_MINUS_DST_ALPHA", GL_ONE_MINUS_DST_ALPHA},
+    {"CONSTANT_COLOR", GL_CONSTANT_COLOR},
+    {"ONE_MINUS_CONSTANT_COLOR", GL_ONE_MINUS_CONSTANT_COLOR},
+    {"CONSTANT_ALPHA", GL_CONSTANT_ALPHA},
+    {"ONE_MINUS_CONSTANT_ALPHA", GL_ONE_MINUS_CONSTANT_ALPHA},
+    {0},
+};
 
 PyMODINIT_FUNC PyInit_commands()
 {
@@ -156,6 +233,15 @@ PyMODINIT_FUNC PyInit_commands()
         return NULL;
 
     if (!enum_add(mod, "CullFace", cullFaces))
+        return NULL;
+
+    if (!enum_add(mod, "DepthFunc", depthFuncValues))
+        return NULL;
+
+    if (!enum_add(mod, "PolygonMode", polygonModeValues))
+        return NULL;
+
+    if (!enum_add(mod, "BlendFactor", blendFuncValues))
         return NULL;
 
     return mod;
