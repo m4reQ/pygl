@@ -1,0 +1,7 @@
+.venv
+.vscode
+*.egg-info
+build/
+*.pdb
+.debug
+tests/
