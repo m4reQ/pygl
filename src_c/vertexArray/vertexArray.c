@@ -31,6 +31,7 @@ static GLuint get_gl_type_size(GLenum type)
     }
 
     assert(0 && "Unreachable at vertexArray::get_gl_type_size");
+    return 0;
 }
 
 static bool set_attrib_format(GLuint array, PyVertexDescriptor* desc, GLuint* offset)
@@ -85,9 +86,9 @@ static bool add_vertex_input(GLuint array, GLuint index, PyVertexInput* input, G
     int nDescriptors = PyList_GET_SIZE(input->descriptors);
     for (int i = 0; i < nDescriptors; i++)
     {
-        PyVertexDescriptor* descriptor = PyList_GET_ITEM(input->descriptors, i);
+        PyVertexDescriptor* descriptor = (PyVertexDescriptor*)PyList_GET_ITEM(input->descriptors, i);
         ThrowIf(
-            !PyObject_IsInstance(descriptor, &pyVertexDescriptorType),
+            !PyObject_IsInstance((PyObject*)descriptor, (PyObject*)&pyVertexDescriptorType),
             PyExc_TypeError,
             "All vertex descriptors objects has to be of type pygl.vertex_array.VertexDescriptor",
             false);
@@ -115,7 +116,7 @@ static int py_vertex_array_init(PyVertexArray* self, PyObject* args, PyObject* k
 
     if (elementBuffer)
         ThrowIf(
-            !is_buffer(elementBuffer),
+            !is_buffer((PyObject*)elementBuffer),
             PyExc_TypeError,
             "Element buffer has to be of type pygl.buffers.Buffer or pygl.buffers.MappedBuffer",
             -1);
@@ -126,7 +127,7 @@ static int py_vertex_array_init(PyVertexArray* self, PyObject* args, PyObject* k
     for (int i = 0; i < nInputs; i++)
     {
         GLuint attribOffset = 0;
-        PyVertexInput* input = PyList_GET_ITEM(vertexInputs, i);
+        PyVertexInput* input = (PyVertexInput*)PyList_GET_ITEM(vertexInputs, i);
 
         ThrowIf(
             !PyList_Check(input->descriptors),
@@ -165,8 +166,8 @@ static void py_vertex_array_dealloc(PyVertexArray* self)
 }
 
 static PyMethodDef pyVertexArrayMethods[] = {
-    {"delete", py_vertex_array_delete, METH_NOARGS, NULL},
-    {"bind", py_vertex_array_bind, METH_NOARGS, NULL},
+    {"delete", (PyCFunction)py_vertex_array_delete, METH_NOARGS, NULL},
+    {"bind", (PyCFunction)py_vertex_array_bind, METH_NOARGS, NULL},
     {0},
 };
 

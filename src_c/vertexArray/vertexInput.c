@@ -30,7 +30,7 @@ static int py_vertexinput_init(PyVertexInput* self, PyObject* args, PyObject* kw
     Py_ssize_t nDesc = PyList_GET_SIZE(descriptors);
     for (Py_ssize_t i = 0; i < nDesc; i++)
         ThrowIf(
-            !PyObject_IsInstance(PyList_GET_ITEM(descriptors, i), &pyVertexDescriptorType),
+            !PyObject_IsInstance(PyList_GET_ITEM(descriptors, i), (PyObject*)&pyVertexDescriptorType),
             PyExc_TypeError,
             "Every element in descriptors list has to be of type pygl.VertexDescriptor",
             -1);
@@ -51,8 +51,8 @@ PyTypeObject pyVertexInputType = {
     .tp_flags = Py_TPFLAGS_DEFAULT,
     .tp_new = PyType_GenericNew,
     .tp_name = "pygl.vertex_array.VertexInput",
-    .tp_init = py_vertexinput_init,
-    .tp_dealloc = py_vertexinput_dealloc,
+    .tp_init = (initproc)py_vertexinput_init,
+    .tp_dealloc = (destructor)py_vertexinput_dealloc,
     .tp_basicsize = sizeof(PyVertexInput),
     .tp_members = (PyMemberDef[]) {
         {"buffer_id", T_UINT, offsetof(PyVertexInput, bufferId), 0, NULL},
