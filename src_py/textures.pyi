@@ -183,6 +183,31 @@ class TextureSpec:
     @property
     def is_multisampled(self) -> bool: ...
 
+class UploadInfo:
+    width: int
+    height: int
+    format: int
+    pixel_type: int
+    level: int
+    x_offset: int
+    y_offset: int
+    image_size: int
+    generate_mipmap: bool
+
+    def __init__(self,
+                 width: int,
+                 height: int,
+                 format: PixelFormat,
+                 pixel_type: PixelType = PixelType.UNSIGNED_BYTE,
+                 level: int = 0,
+                 x_offset: int = 0,
+                 y_offset: int = 0,
+                 image_size: int = 0,
+                 generate_mipmap: bool = True) -> None: ...
+
+    @property
+    def is_compressed(self) -> bool: ...
+
 class Texture2D:
     width: int
     height: int
@@ -196,14 +221,5 @@ class Texture2D:
     def set_parameter(self, param: TextureParameter, value: int | float) -> None: ...
     def bind(self) -> None: ...
     def bind_to_unit(self, unit: int) -> None: ...
-    def upload(self,
-               width: int,
-               height: int,
-               format: PixelFormat,
-               data: TSupportsBuffer,
-               type: PixelType = PixelType.UNSIGNED_BYTE,
-               level: int = 0,
-               x_offset: int = 0,
-               y_offset: int = 0,
-               generate_mipmap: bool = True) -> None: ...
+    def upload(self, info: UploadInfo, data: TSupportsBuffer) -> None: ...
     def generate_mipmap(self) -> None: ...

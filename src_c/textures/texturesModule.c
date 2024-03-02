@@ -1,5 +1,6 @@
 #include "textureSpec.h"
 #include "texture2D.h"
+#include "uploadInfo.h"
 #include "../enum.h"
 #include <glad/gl.h>
 
@@ -161,6 +162,9 @@ PyMODINIT_FUNC PyInit_textures()
         return NULL;
 
     if (PyModule_AddType(mod, &pyTexture2DType))
+        return NULL;
+
+    if (PyModule_AddType(mod, &pyUploadInfoType))
         return NULL;
 
     if (!enum_add(mod, "TextureParameter", textureParameterValues))

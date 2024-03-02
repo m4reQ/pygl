@@ -1,5 +1,6 @@
 #include "textureBase.h"
 #include "../utility.h"
+#include "uploadInfo.h"
 #include <assert.h>
 
 static size_t get_texture_format_size(GLenum format)
@@ -66,32 +67,17 @@ PyObject* py_texture_delete(PyTexture* self, PyObject* Py_UNUSED(args))
 
 PyObject* py_texture_upload(PyTexture* self, PyObject* args, PyObject* kwargs)
 {
-    static char* kwNames[] = {"width", "height", "format", "data", /* optional */ "type", "level", "x_offset", "y_offset", "generate_mipmap", NULL};
+    static char* kwNames[] = {"info", "data", NULL};
 
     PyObject* result = NULL;
 
-    GLsizei width = 0, height = 0;
     Py_buffer dataBuffer = {0};
-    GLenum format = 0;
+    PyUploadInfo* info = NULL;
 
-    GLint level = 0;
-    GLint xOffset = 0, yOffset = 0;
-    GLenum type = GL_UNSIGNED_BYTE;
-    bool generateMipmap = true;
-
-    if (!PyArg_ParseTupleAndKeywords(
-        args, kwargs, "iiIy*|Iiiip", kwNames,
-        &width, &height, &format, &dataBuffer,
-        &type, &level, &xOffset, &yOffset, &generateMipmap))
+    if (!PyArg_ParseTupleAndKeywords(args, kwargs, "O!y*", kwNames, &pyUploadInfoType, &info, &dataBuffer))
         goto end;
 
-    if (width < 0 || height < 0)
-    {
-        PyErr_SetString(PyExc_ValueError, "Both width and height must be greater than 0.");
-        goto end;
-    }
-
-    if (width + xOffset > self->width || height + xOffset > self->height)
+    if (info->width + info->xOffset > self->width || info->height + info->xOffset > self->height)
     {
         PyErr_SetString(PyExc_ValueError, "Both width and height with offsets added must be less or equal to the texture dimensions.");
         goto end;
@@ -100,17 +86,42 @@ PyObject* py_texture_upload(PyTexture* self, PyObject* args, PyObject* kwargs)
     if (!utils_check_buffer_contiguous(&dataBuffer))
         goto end;
 
-    size_t dataStart = yOffset * width + xOffset;
-    size_t dataLen = width * height * get_pixel_type_size(type);
-    if (dataStart + dataLen > dataBuffer.len)
+    size_t dataStart = info->yOffset * info->width + info->xOffset;
+
+    if (info->imageSize > 0)
     {
-        PyErr_Format(PyExc_ValueError, "Calculated transfer data size exceeds buffer size with specified offset. (calculated size: %zu, buffer size: %zu)", dataLen, dataBuffer.len);
-        goto end;
+        if (info->imageSize + dataStart > dataBuffer.len)
+        {
+            PyErr_Format(PyExc_ValueError, "Image size exceeds buffer size with specified offset. (image size: %zu, buffer size: %zu)", info->imageSize, dataBuffer.len);
+            goto end;
+        }
+
+        glCompressedTextureSubImage2D(
+            self->id,
+            info->level, info->xOffset, info->yOffset,
+            info->width, info->height,
+            info->format,
+            info->imageSize,
+            dataBuffer.buf);
+    }
+    else
+    {
+        size_t dataLen = info->width * info->height * get_pixel_type_size(info->type);
+        if (dataStart + dataLen > dataBuffer.len)
+        {
+            PyErr_Format(PyExc_ValueError, "Calculated transfer data size exceeds buffer size with specified offset. (calculated size: %zu, buffer size: %zu)", dataLen, dataBuffer.len);
+            goto end;
+        }
+
+        glTextureSubImage2D(
+            self->id,
+            info->level, info->xOffset, info->yOffset,
+            info->width, info->height,
+            info->format, info->type,
+            dataBuffer.buf);
     }
 
-    glTextureSubImage2D(self->id, level, xOffset, yOffset, width, height, format, type, dataBuffer.buf);
-
-    if (generateMipmap)
+    if (info->generateMipmap)
         glGenerateTextureMipmap(self->id);
 
     result = Py_NewRef(Py_None);
