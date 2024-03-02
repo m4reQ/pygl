@@ -95,11 +95,8 @@ PyObject* py_texture_upload(PyTexture* self, PyObject* args, PyObject* kwargs)
         goto end;
     }
 
-    if (!PyBuffer_IsContiguous(&dataBuffer, 'C'))
-    {
-        PyErr_SetString(PyExc_ValueError, "Data buffer has to be C-contiguous. For more informations go to https://github.com/m4reQ/pygl?tab=readme-ov-file#buffer-protocol-usage.");
+    if (!utils_check_buffer_contiguous(&dataBuffer))
         goto end;
-    }
 
     size_t dataStart = yOffset * width + xOffset;
     size_t dataLen = width * height * get_pixel_type_size(type);

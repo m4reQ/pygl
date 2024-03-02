@@ -19,6 +19,18 @@ typedef struct
     GLint nameLength;
 } ResourceProto;
 
+static GLint get_uniform_location(PyShader* shader, PyObject* name)
+{
+    PyObject* locationObj = PyDict_GetItem(shader->resources, name);
+    if (!locationObj)
+    {
+        PyErr_Format(PyExc_ValueError, "Couldn't find uniform named %U.", name);
+        return -1;
+    }
+
+    return PyLong_AsLong(locationObj);
+}
+
 static bool check_compile_success(GLuint stage)
 {
     GLint compileSuccess = GL_FALSE;
@@ -142,7 +154,7 @@ static void retrieve_interface(GLuint shader, GLenum interface, PyObject* storag
         // normalize array names (array[0] -> array)
         char* bracket = strchr(name, '[');
         if (bracket)
-            bracket = '\0';
+            *bracket = '\0';
 
         PyDict_SetItemString(storage, name, PyLong_FromLong(proto.location));
     }
@@ -279,6 +291,87 @@ static PyObject* py_shader_set_uniform_block_binding(PyShader* self, PyObject* a
     Py_RETURN_NONE;
 }
 
+static PyObject* py_shader_set_uniform(PyShader* self, PyObject* args)
+{
+    PyObject* name = NULL;
+    PyObject* value = NULL;
+    if (!PyArg_ParseTuple(args, "UO", &name, &value))
+        return NULL;
+
+    GLint uniformLocation = get_uniform_location(self, name);
+    if (uniformLocation == -1)
+        return NULL; // exception already set
+
+    if (PyLong_Check(value))
+    {
+        int overflow = 0;
+        int _value = PyLong_AsLongAndOverflow(value, &overflow);
+        if (overflow == -1)
+            glProgramUniform1i(self->id, uniformLocation, _value);
+        else
+            glProgramUniform1ui(self->id, uniformLocation, (GLuint)_value);
+    }
+    else if (PyFloat_Check(value))
+    {
+        // find way to allow setting double type uniforms (maybe change API to accept explicit value type?)
+        glProgramUniform1f(self->id, uniformLocation, (GLfloat)PyFloat_AS_DOUBLE(value));
+    }
+    else
+    {
+        PyErr_SetString(PyExc_TypeError, "Expected value to be of type int or float.");
+        return NULL;
+    }
+
+    Py_RETURN_NONE;
+}
+
+static PyObject* py_shader_set_uniform_array(PyShader* self, PyObject* args)
+{
+    PyObject* result = NULL;
+
+    PyObject* name = NULL;
+    Py_buffer dataBuffer = {0};
+    GLenum type = 0;
+
+    if (!PyArg_ParseTuple(args, "Uy*I", &name, &dataBuffer, &type))
+        goto end;
+
+    GLint uniformLocation = get_uniform_location(self, name);
+    if (uniformLocation == -1)
+        return NULL; // exception already set
+
+    if (!utils_check_buffer_contiguous(&dataBuffer))
+        goto end;
+
+    GLsizei count = dataBuffer.len / dataBuffer.itemsize;
+
+    switch (type)
+    {
+    case GL_FLOAT:
+        glProgramUniform1fv(self->id, uniformLocation, count, (const GLfloat*)dataBuffer.buf);
+        break;
+    case GL_DOUBLE:
+        glProgramUniform1dv(self->id, uniformLocation, count, (const GLdouble*)dataBuffer.buf);
+        break;
+    case GL_INT:
+        glProgramUniform1iv(self->id, uniformLocation, count, (const GLint*)dataBuffer.buf);
+        break;
+    case GL_UNSIGNED_INT:
+        glProgramUniform1uiv(self->id, uniformLocation, count, (const GLuint*)dataBuffer.buf);
+        break;
+    default:
+        PyErr_SetString(PyExc_ValueError, "Invalid value type provided.");
+        goto end;
+    }
+
+    result = Py_NewRef(Py_None);
+end:
+    if (dataBuffer.buf != NULL)
+        PyBuffer_Release(&dataBuffer);
+
+    return result;
+}
+
 static PyMethodDef pyShaderMethods[] = {
     {"delete", py_shader_delete, METH_NOARGS, NULL},
     {"use", py_shader_use, METH_NOARGS, NULL},
@@ -286,7 +379,9 @@ static PyMethodDef pyShaderMethods[] = {
     {"validate", py_shader_validate, METH_NOARGS, NULL},
     {"set_uniform_block_binding", py_shader_set_uniform_block_binding, METH_VARARGS, NULL},
     {"get_uniform_block_location", py_shader_get_uniform_block_location, METH_O, NULL},
-    // TODO Add functions to set uniform values
+    {"set_uniform", py_shader_set_uniform, METH_VARARGS, NULL},
+    {"set_uniform_array", py_shader_set_uniform_array, METH_VARARGS, NULL},
+    // TODO set_uniform_matrix and set_uniform_vector
     {0},
 };
 
