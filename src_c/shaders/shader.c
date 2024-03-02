@@ -304,9 +304,8 @@ static PyObject* py_shader_set_uniform(PyShader* self, PyObject* args)
 
     if (PyLong_Check(value))
     {
-        int overflow = 0;
-        int _value = PyLong_AsLongAndOverflow(value, &overflow);
-        if (overflow == -1)
+        GLint _value = PyLong_AsLong(value);
+        if (_value < 0)
             glProgramUniform1i(self->id, uniformLocation, _value);
         else
             glProgramUniform1ui(self->id, uniformLocation, (GLuint)_value);
