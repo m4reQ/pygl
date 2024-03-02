@@ -175,6 +175,7 @@ static int py_shader_init(PyShader* self, PyObject* args, PyObject* Py_UNUSED(kw
             return stage;
 
         glAttachShader(self->id, stage);
+        attachedStages[i] = stage;
     }
 
     glLinkProgram(self->id);
