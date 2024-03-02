@@ -1,0 +1,6 @@
+import typing as t
+
+TDebugCallback = t.Callable[[int, int, int, int, str, t.Any], t.Any]
+
+def enable(callback: TDebugCallback, user_data: t.Any = None) -> None: ...
+def disable() -> None: ...

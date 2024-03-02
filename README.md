@@ -28,3 +28,8 @@ All functions that accept buffer-like objects are annotated with helper type `TS
 **Buffer contiguity**\
 If you are passing object that supports buffer protocol, you also have to make sure that the underlying buffer it exposes is *C-contiguous*. This is requied for us to be able to simply copy buffers data to destination, without employing any conversion methods. In future it might be possible to use buffers whose data is not C-contiguous.\
 To learn more about Python's buffer contiguity go to [https://docs.python.org/3/glossary.html#term-contiguous].
+## OpenGL debug callback
+pyGL allows you to specify OpenGL debug callback function, which can help with troubleshooting graphical errors. Be careful though!\
+Because we cannot efficiently check is an exception occurred during execution of that function, any errors inside it will be silently
+ignored, which may lead to later bugs or even program crash.\
+If you use debug callback and encounter any bugs it's a good practice to first check if the callback function is written correctly.
