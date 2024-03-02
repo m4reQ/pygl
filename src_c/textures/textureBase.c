@@ -66,7 +66,7 @@ PyObject* py_texture_delete(PyTexture* self, PyObject* Py_UNUSED(args))
 
 PyObject* py_texture_upload(PyTexture* self, PyObject* args, PyObject* kwargs)
 {
-    static char* kwNames[] = {"width", "height", "format", "data", /* optional */ "type", "level", "x_offset", "y_offset", NULL};
+    static char* kwNames[] = {"width", "height", "format", "data", /* optional */ "type", "level", "x_offset", "y_offset", "generate_mipmap", NULL};
 
     PyObject* result = NULL;
 
@@ -77,10 +77,12 @@ PyObject* py_texture_upload(PyTexture* self, PyObject* args, PyObject* kwargs)
     GLint level = 0;
     GLint xOffset = 0, yOffset = 0;
     GLenum type = GL_UNSIGNED_BYTE;
+    bool generateMipmap = true;
+
     if (!PyArg_ParseTupleAndKeywords(
-        args, kwargs, "iiIy*|Iiii", kwNames,
+        args, kwargs, "iiIy*|Iiiip", kwNames,
         &width, &height, &format, &dataBuffer,
-        &type, &level, &xOffset, &yOffset))
+        &type, &level, &xOffset, &yOffset, &generateMipmap))
         goto end;
 
     if (width < 0 || height < 0)
@@ -107,6 +109,9 @@ PyObject* py_texture_upload(PyTexture* self, PyObject* args, PyObject* kwargs)
     }
 
     glTextureSubImage2D(self->id, level, xOffset, yOffset, width, height, format, type, dataBuffer.buf);
+
+    if (generateMipmap)
+        glGenerateTextureMipmap(self->id);
 
     result = Py_NewRef(Py_None);
 end:
@@ -184,6 +189,12 @@ PyObject* py_texture_set_parameter(PyTexture* self, PyObject* args)
         return NULL;
     }
 
+    Py_RETURN_NONE;
+}
+
+PyObject* py_texture_generate_mipmap(PyTexture* self, PyObject* Py_UNUSED(args))
+{
+    glGenerateTextureMipmap(self->id);
     Py_RETURN_NONE;
 }
 

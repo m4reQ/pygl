@@ -20,7 +20,8 @@ static PyMethodDef pyTexture2DMethods[] = {
     {"set_parameter", (PyCFunction)py_texture_set_parameter, METH_VARARGS},
     {"bind", (PyCFunction)py_texture_bind, METH_NOARGS, NULL},
     {"bind_to_unit", (PyCFunction)py_texture_bind_to_unit, METH_VARARGS, NULL},
-    {"bind_textures", (PyCFunction)py_texture_bind_textures, METH_VARARGS | METH_VARARGS | METH_STATIC},
+    {"bind_textures", (PyCFunction)py_texture_bind_textures, METH_VARARGS | METH_VARARGS | METH_STATIC, NULL},
+    {"generate_mipmap", (PyCFunction)py_texture_generate_mipmap, METH_NOARGS, NULL},
     {0},
 };
 
