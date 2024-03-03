@@ -372,14 +372,14 @@ end:
 }
 
 static PyMethodDef pyShaderMethods[] = {
-    {"delete", py_shader_delete, METH_NOARGS, NULL},
-    {"use", py_shader_use, METH_NOARGS, NULL},
-    {"get_resource_location", py_shader_get_resource_location, METH_O, NULL},
-    {"validate", py_shader_validate, METH_NOARGS, NULL},
-    {"set_uniform_block_binding", py_shader_set_uniform_block_binding, METH_VARARGS, NULL},
-    {"get_uniform_block_location", py_shader_get_uniform_block_location, METH_O, NULL},
-    {"set_uniform", py_shader_set_uniform, METH_VARARGS, NULL},
-    {"set_uniform_array", py_shader_set_uniform_array, METH_VARARGS, NULL},
+    {"delete", (PyCFunction)py_shader_delete, METH_NOARGS, NULL},
+    {"use", (PyCFunction)py_shader_use, METH_NOARGS, NULL},
+    {"get_resource_location", (PyCFunction)py_shader_get_resource_location, METH_O, NULL},
+    {"validate", (PyCFunction)py_shader_validate, METH_NOARGS, NULL},
+    {"set_uniform_block_binding", (PyCFunction)py_shader_set_uniform_block_binding, METH_VARARGS, NULL},
+    {"get_uniform_block_location", (PyCFunction)py_shader_get_uniform_block_location, METH_O, NULL},
+    {"set_uniform", (PyCFunction)py_shader_set_uniform, METH_VARARGS, NULL},
+    {"set_uniform_array", (PyCFunction)py_shader_set_uniform_array, METH_VARARGS, NULL},
     // TODO set_uniform_matrix and set_uniform_vector
     {0},
 };
