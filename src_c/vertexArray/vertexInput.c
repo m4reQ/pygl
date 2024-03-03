@@ -1,9 +1,7 @@
 #include "vertexInput.h"
 #include <structmember.h>
 #include "../buffers/buffer.h"
-#include "../buffers/mappedBuffer.h"
 #include "../utility.h"
-#include "../buffers/bufferBase.h"
 #include "vertexDescriptor.h"
 
 static int py_vertexinput_init(PyVertexInput* self, PyObject* args, PyObject* kwargs)
@@ -19,12 +17,12 @@ static int py_vertexinput_init(PyVertexInput* self, PyObject* args, PyObject* kw
         return -1;
 
     ThrowIf(
-        !is_buffer(buffer),
+        !PyObject_IsInstance((PyObject*)buffer, (PyObject*)&pyBufferType),
         PyExc_TypeError,
         "Buffer must be either of pygl.buffers.Buffer or pygl.buffers.MappedBuffer type.",
         -1);
 
-    self->bufferId = ((PyBufferBase*)buffer)->id;
+    self->bufferId = ((PyBuffer*)buffer)->id;
 
     // check types of every element in `descriptors` here to avoid later errors
     Py_ssize_t nDesc = PyList_GET_SIZE(descriptors);

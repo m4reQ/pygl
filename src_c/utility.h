@@ -3,6 +3,7 @@
 #include <Python.h>
 
 #define ThrowIf(cond, err, msg, ...) do { if (cond) { PyErr_SetString(err, msg); return __VA_ARGS__; } } while (0)
+#define ThrowIfGoto(cond, err, msg, label) do { if (cond) { PyErr_SetString(err, msg); goto label; } } while (0)
 #define PyAssert(cond, msg, ...) do { if (!Py_OptimizeFlag) ThrowIf(!(cond), PyExc_AssertionError, msg, ##__VA_ARGS__); } while (0)
 
 #define _Log(logger, meth, msg, ...) do { PyObject* _msg = PyUnicode_FromFormat(msg, ##__VA_ARGS__); PyObject_CallMethod(logger, meth, "N", msg); } while (0);

@@ -1,7 +1,6 @@
 #include "vertexArray.h"
 #include "vertexInput.h"
 #include "vertexDescriptor.h"
-#include "../buffers/bufferBase.h"
 #include "../utility.h"
 #include <stdbool.h>
 #include <assert.h>
@@ -109,14 +108,14 @@ static int py_vertex_array_init(PyVertexArray* self, PyObject* args, PyObject* k
     static char* kwNames[] = {"layout", "element_buffer", NULL};
 
     PyObject* vertexInputs = NULL;
-    PyBufferBase* elementBuffer = NULL;
+    PyBuffer* elementBuffer = NULL;
 
     if (!PyArg_ParseTupleAndKeywords(args, kwargs, "O!|O", kwNames, &PyList_Type, &vertexInputs, &elementBuffer))
         return -1;
 
     if (elementBuffer)
         ThrowIf(
-            !is_buffer((PyObject*)elementBuffer),
+            !PyObject_IsInstance((PyObject*)elementBuffer, (PyObject*)&pyBufferType),
             PyExc_TypeError,
             "Element buffer has to be of type pygl.buffers.Buffer or pygl.buffers.MappedBuffer",
             -1);

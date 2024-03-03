@@ -1,7 +1,7 @@
 #pragma once
 #include <Python.h>
 #include <glad/gl.h>
-#include "../buffers/bufferBase.h"
+#include "../buffers/buffer.h"
 
 typedef struct
 {
