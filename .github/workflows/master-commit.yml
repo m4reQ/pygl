@@ -22,6 +22,8 @@ jobs:
           version: "24.0.2"
           build-type: "release-msvc"
           deployment-choice: "1"
+      - name: Set MESA env variables
+        run: set MESA_GL_VERSION_OVERRIDE=4.5FC
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
