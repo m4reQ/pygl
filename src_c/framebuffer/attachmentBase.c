@@ -26,7 +26,7 @@ bool convert_attachment(PyObject* attachment, GLenum* result)
         int offset = PyLong_AsLong(attachment);
         if (offset < 0)
         {
-            PyErr_SetString(PyExc_ValueError, "Attachment index cannot has to be greater than 0.");
+            PyErr_SetString(PyExc_ValueError, "Attachment index has to be greater than 0.");
             return false;
         }
 

@@ -232,8 +232,12 @@ static int init(PyFramebuffer* self, PyObject* args, PyObject* Py_UNUSED(kwargs)
 static void dealloc(PyFramebuffer* self)
 {
     delete_framebuffer_contents(self);
-    PyMem_Free(self->attachments);
+
+    if (self->attachments)
+        PyMem_Free(self->attachments);
+
     Py_CLEAR(self->specs);
+
     Py_TYPE(self)->tp_free(self);
 }
 
