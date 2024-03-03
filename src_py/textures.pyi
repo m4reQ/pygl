@@ -1,6 +1,5 @@
 import enum
-
-from _types import TSupportsBuffer as TSupportsBuffer
+from collections.abc import Buffer as TSupportsBuffer
 
 class TextureParameter(enum.IntEnum):
     DEPTH_STENCIL_TEXTURE_MODE: int

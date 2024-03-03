@@ -58,6 +58,52 @@ static size_t get_pixel_type_size(GLenum type)
     return 0;
 }
 
+static void set_default_texture_parameters(GLuint tex, PyTextureSpec* spec)
+{
+    texture_set_parameter_int(tex, GL_TEXTURE_BASE_LEVEL, 0);
+    texture_set_parameter_int(tex, GL_TEXTURE_MAX_LEVEL, max(spec->mipmaps - 1, 0));
+    texture_set_parameter_int(tex, GL_TEXTURE_MIN_FILTER, (GLint)spec->minFilter);
+    texture_set_parameter_int(tex, GL_TEXTURE_MAG_FILTER, (GLint)spec->magFilter);
+    texture_set_parameter_int(tex, GL_TEXTURE_WRAP_S, (GLint)spec->wrapMode);
+    texture_set_parameter_int(tex, GL_TEXTURE_WRAP_T, (GLint)spec->wrapMode);
+    texture_set_parameter_int(tex, GL_TEXTURE_WRAP_R, (GLint)spec->wrapMode);
+}
+
+static bool check_texture_immutable_format(GLuint tex)
+{
+    GLint immutableFormat = GL_FALSE;
+    glGetTextureParameteriv(tex, GL_TEXTURE_IMMUTABLE_FORMAT, &immutableFormat);
+    if (!immutableFormat)
+    {
+        PyErr_SetString(PyExc_RuntimeError, "Couldn't create immutable texture storage.");
+        return false;
+    }
+
+    return true;
+}
+
+GLuint texture_create_fb_attachment(PyAttachmentSpec* spec, GLsizei width, GLsizei height)
+{
+    GLuint id = 0;
+    GLenum target = spec->samples > 1 ? GL_TEXTURE_2D_MULTISAMPLE : GL_TEXTURE_2D;
+    glCreateTextures(target, 1, &id);
+
+    if (spec->samples > 1)
+        glTextureStorage2DMultisample(id, spec->samples, spec->format, spec->width, spec->height, GL_TRUE);
+    else
+        glTextureStorage2D(id, 1, spec->format, spec->width, spec->height);
+
+    PyTextureSpec texSpec = {
+        .minFilter = spec->minFilter,
+        .magFilter = spec->magFilter,
+        .mipmaps = 1,
+        .wrapMode = GL_CLAMP_TO_EDGE,
+    };
+    set_default_texture_parameters(id, &texSpec);
+
+    return id;
+}
+
 PyObject* py_texture_delete(PyTexture* self, PyObject* Py_UNUSED(args))
 {
     glDeleteTextures(1, &self->id);
@@ -146,8 +192,14 @@ PyObject* py_texture_bind_to_unit(PyTexture* self, PyObject* unit)
         "Texture unit has to be of type int",
         NULL);
 
-    // TODO Maybe check if unit is not less than 0
-    glBindTextureUnit(PyLong_AsUnsignedLong(unit), self->id);
+    int _unit = PyLong_AsLong(unit);
+    ThrowIf(
+        _unit < 0,
+        PyExc_ValueError,
+        "Texture unit has to be greater than 0.",
+        NULL);
+
+    glBindTextureUnit((GLuint)_unit, self->id);
     Py_RETURN_NONE;
 }
 
@@ -191,9 +243,9 @@ PyObject* py_texture_set_parameter(PyTexture* self, PyObject* args)
         return NULL;
 
     if (PyLong_Check(value))
-        texture_set_parameter_int(self, param, PyLong_AsLong(value));
+        texture_set_parameter_int(self->id, param, PyLong_AsLong(value));
     else if (PyFloat_Check(value))
-        texture_set_parameter_float(self, param, (float)PyFloat_AS_DOUBLE(value));
+        texture_set_parameter_float(self->id, param, (float)PyFloat_AS_DOUBLE(value));
     else
     {
         PyErr_SetString(PyExc_TypeError, "value has to be of type int or float.");
@@ -222,10 +274,10 @@ bool texture_create(PyTexture* tex, GLenum target, PyTextureSpec* spec, bool set
     case GL_TEXTURE_1D:
         glTextureStorage1D(tex->id, spec->samples, spec->internalFormat, spec->width);
     case GL_TEXTURE_2D:
-        if (spec->samples > 1)
-            glTextureStorage2DMultisample(tex->id, spec->samples, spec->internalFormat, spec->width, spec->height, GL_TRUE);
-        else
-            glTextureStorage2D(tex->id, spec->mipmaps, spec->internalFormat, spec->width, spec->height);
+        glTextureStorage2D(tex->id, spec->mipmaps, spec->internalFormat, spec->width, spec->height);
+        break;
+    case GL_TEXTURE_2D_MULTISAMPLE:
+        glTextureStorage2DMultisample(tex->id, spec->samples, spec->internalFormat, spec->width, spec->height, GL_TRUE);
         break;
     default:
         PyErr_SetString(PyExc_ValueError, "Unsupported texture target encountered.");
@@ -233,33 +285,17 @@ bool texture_create(PyTexture* tex, GLenum target, PyTextureSpec* spec, bool set
     }
 
     if (setParameters)
-    {
-        texture_set_parameter_int(tex, GL_TEXTURE_BASE_LEVEL, 0);
-        texture_set_parameter_int(tex, GL_TEXTURE_MAX_LEVEL, max(spec->mipmaps - 1, 0));
-        texture_set_parameter_int(tex, GL_TEXTURE_MIN_FILTER, (GLint)spec->minFilter);
-        texture_set_parameter_int(tex, GL_TEXTURE_MAG_FILTER, (GLint)spec->magFilter);
-        texture_set_parameter_int(tex, GL_TEXTURE_WRAP_S, (GLint)spec->wrapMode);
-        texture_set_parameter_int(tex, GL_TEXTURE_WRAP_T, (GLint)spec->wrapMode);
-        texture_set_parameter_int(tex, GL_TEXTURE_WRAP_R, (GLint)spec->wrapMode);
-    }
+        set_default_texture_parameters(tex->id, spec);
 
-    GLint immutableFormat = GL_FALSE;
-    glGetTextureParameteriv(tex->id, GL_TEXTURE_IMMUTABLE_FORMAT, &immutableFormat);
-    if (!immutableFormat)
-    {
-        PyErr_SetString(PyExc_RuntimeError, "Couldn't create immutable texture storage.");
-        return false;
-    }
-
-    return true;
+    return check_texture_immutable_format(tex->id);
 }
 
-void texture_set_parameter_int(PyTexture* tex, GLenum parameter, GLint value)
+void texture_set_parameter_int(GLuint tex, GLenum parameter, GLint value)
 {
-    glTextureParameteri(tex->id, parameter, value);
+    glTextureParameteri(tex, parameter, value);
 }
 
-void texture_set_parameter_float(PyTexture* tex, GLenum parameter, GLfloat value)
+void texture_set_parameter_float(GLuint tex, GLenum parameter, GLfloat value)
 {
-    glTextureParameterf(tex->id, parameter, value);
+    glTextureParameterf(tex, parameter, value);
 }

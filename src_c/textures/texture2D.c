@@ -8,7 +8,8 @@ static int py_texture_2d_init(PyTexture* self, PyObject* args, PyObject* Py_UNUS
     if (!PyArg_ParseTuple(args, "O!", &pyTextureSpecType, &spec))
         return -1;
 
-    if (!texture_create(self, GL_TEXTURE_2D, spec, true))
+    GLenum target = spec->samples > 1 ? GL_TEXTURE_2D_MULTISAMPLE : GL_TEXTURE_2D;
+    if (!texture_create(self, target, spec, true))
         return -1;
 
     return 0;

@@ -3,6 +3,7 @@
 #include <glad/gl.h>
 #include <stdbool.h>
 #include "textureSpec.h"
+#include "../framebuffer/attachmentBase.h"
 
 typedef struct
 {
@@ -23,6 +24,7 @@ PyObject* py_texture_generate_mipmap(PyTexture* self, PyObject* Py_UNUSED(args))
 PyObject* py_texture_bind_textures(PyObject* Py_UNUSED(cls), PyObject* args, PyObject* kwargs);
 void py_texture_dealloc(PyTexture* self);
 
+GLuint texture_create_fb_attachment(PyAttachmentSpec* spec, GLsizei width, GLsizei height);
 bool texture_create(PyTexture* tex, GLenum target, PyTextureSpec* spec, bool setParameters);
-void texture_set_parameter_int(PyTexture* tex, GLenum parameter, GLint value);
-void texture_set_parameter_float(PyTexture* tex, GLenum parameter, GLfloat value);
+void texture_set_parameter_int(GLuint tex, GLenum parameter, GLint value);
+void texture_set_parameter_float(GLuint tex, GLenum parameter, GLfloat value);

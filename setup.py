@@ -8,7 +8,7 @@ from setuptools.command.build_ext import build_ext
 from setuptools.command.install_lib import install_lib
 
 CMAKE_BUILD_DIR = 'build/cmake'
-CMAKE_CONFIG = 'Debug' if hasattr(sys, 'gettotalrefcount') else 'Release'
+CMAKE_CONFIG = 'RelWithDebInfo' if os.path.exists('./.debug') else 'Release'
 
 class pygl_build_ext(build_ext):
     def run(self) -> None:
@@ -24,6 +24,11 @@ class pygl_build_ext(build_ext):
         shutil.copy(
             f'build/cmake/{CMAKE_CONFIG}/pygl.pyd',
             os.path.join(self.build_lib, 'pygl', 'pygl.pyd'))
+
+        if CMAKE_CONFIG == 'RelWithDebInfo':
+            shutil.copy(
+            f'build/cmake/{CMAKE_CONFIG}/pygl.pdb',
+            os.path.join(self.build_lib, 'pygl', 'pygl.pdb'))
 
         return super().run()
 
