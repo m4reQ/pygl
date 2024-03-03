@@ -36,6 +36,11 @@ static void opengl_callback(GLenum source, GLenum type, GLuint id, GLenum severi
     }
 }
 
+static PyObject* get_error(PyObject* Py_UNUSED(self), PyObject* Py_UNUSED(args))
+{
+    return PyLong_FromUnsignedLong(glGetError());
+}
+
 static PyObject* py_debug_enable(PyObject* Py_UNUSED(self), PyObject* args, PyObject* kwargs)
 {
     static char* kwNames[] = {"callback", "user_data", NULL};
@@ -76,7 +81,7 @@ static PyObject* py_debug_disable(PyObject* Py_UNUSED(self), PyObject* Py_UNUSED
     Py_RETURN_NONE;
 }
 
-static PyObject* py_debug_free(void* Py_UNUSED(self))
+static void py_debug_free(void* Py_UNUSED(self))
 {
     free_callback_data();
 }
@@ -84,6 +89,7 @@ static PyObject* py_debug_free(void* Py_UNUSED(self))
 static PyMethodDef moduleMethods[] = {
     {"enable", (PyCFunction)py_debug_enable, METH_VARARGS | METH_KEYWORDS, NULL},
     {"disable", py_debug_disable, METH_NOARGS, NULL},
+    {"get_error", get_error, METH_NOARGS, NULL},
     {0},
 };
 
