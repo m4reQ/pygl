@@ -1,0 +1,50 @@
+name: Push master
+on:
+  push
+  pull_request:
+    branches:
+      - main
+jobs:
+  setup:
+    name: Setup dependencies and build
+    runs-on: windows
+
+    strategy:
+      matrix:
+        python-version: ["3.11", "3.12"]
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4.1.1
+      - name: Install CMake
+        uses: jwlawson/actions-setup-cmake@v2.0.1
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          architecture: "x64"
+          python-version: ${{matrix.python-version}}
+          cache: "pip"
+
+  build:
+    name: Build pygl
+    runs-on: windows
+
+    strategy:
+      matrix:
+        python-version: ["3.11", "3.12"]
+
+    steps:
+      - name: Build pygl
+        run: py -m pip install -v .[test]
+
+  test:
+    name: Run tests
+    runs-on: windows
+
+    strategy:
+      matrix:
+        python-version: ["3.11", "3.12"]
+
+    steps:
+      - name: Test pygl using pytest
+        run: pytest tests

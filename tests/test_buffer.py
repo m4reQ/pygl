@@ -1,4 +1,3 @@
-import numpy as np
 import pytest
 
 from pygl.buffers import Buffer, BufferFlags
@@ -99,7 +98,7 @@ def test_buffer_store_success_persistent(gl_context):
 
 def test_buffer_store_fail_noncontiguous_data(gl_context):
     buf = Buffer(2137, BufferFlags.DYNAMIC_STORAGE_BIT)
-    data = np.zeros((6, 9), dtype=np.uint8).T
+    data = memoryview(bytearray([1, 2, 3, 4, 5, 6]))[::2] # non-contiguous array
 
     with pytest.raises(ValueError):
         buf.store(data)
