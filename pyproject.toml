@@ -5,7 +5,12 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "pygl"
 version = "0.0.1"
-requires-python = ">=3.11"
+requires-python = ">=3.12"
+
+[project.optional-dependencies]
+test = [
+    "pytest",
+    "glfw"]
 
 [tool.setuptools]
 packages = ["pygl"]
