@@ -4,8 +4,8 @@ on:
 
 jobs:
   setup:
-    name: Setup dependencies and build
-    runs-on: windows
+    name: Setup dependencies
+    runs-on: windows-latest
 
     strategy:
       matrix:
@@ -25,7 +25,7 @@ jobs:
 
   build:
     name: Build pygl
-    runs-on: windows
+    runs-on: windows-latest
 
     strategy:
       matrix:
@@ -37,7 +37,7 @@ jobs:
 
   test:
     name: Run tests
-    runs-on: windows
+    runs-on: windows-latest
 
     strategy:
       matrix:
