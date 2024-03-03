@@ -1,8 +1,6 @@
 name: Push master
 on:
-  push:
-    branches:
-      - master
+  push
 
 jobs:
   setup:
