@@ -3,8 +3,8 @@ on:
   push
 
 jobs:
-  setup:
-    name: Setup dependencies
+  build-and-test:
+    name: Build pygl and run all tests
     runs-on: windows-latest
 
     strategy:
@@ -22,27 +22,9 @@ jobs:
           architecture: "x64"
           python-version: ${{matrix.python-version}}
           cache: "pip"
-
-  build:
-    name: Build pygl
-    runs-on: windows-latest
-
-    strategy:
-      matrix:
-        python-version: ["3.11", "3.12"]
-
-    steps:
       - name: Build pygl
-        run: py -m pip install -v .[test]
-
-  test:
-    name: Run tests
-    runs-on: windows-latest
-
-    strategy:
-      matrix:
-        python-version: ["3.11", "3.12"]
-
-    steps:
+        run: |
+        python -m pip install --upgrade pip
+        pip install -v .[test]
       - name: Test pygl using pytest
         run: pytest tests
