@@ -12,11 +12,6 @@ test = [
     "pytest",
     "glfw"]
 
-[project.optional-dependencies]
-test = [
-    "pytest",
-    "glfw"]
-
 [tool.setuptools]
 packages = ["pygl"]
 
