@@ -25,11 +25,8 @@ static int init(PyAttachmentSpec* self, PyObject* args, PyObject* kwargs)
         return -1;
     }
 
-
     if (!convert_attachment(attachment, &self->attachment))
         return -1;
-
-    // TODO Check if attachment-format combination is valid (prevent combinations like GL_DEPTH_ATTACHMENT & GL_RGBA8)
 
     return 0;
 }

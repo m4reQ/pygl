@@ -116,3 +116,76 @@ def test_buffer_store_fail_overflow(gl_context):
 
     with pytest.raises(RuntimeError):
         buf.store(data)
+
+def test_buffer_read_success_client(gl_context):
+    buf = Buffer(4, BufferFlags.DYNAMIC_STORAGE_BIT)
+    data = bytearray([1, 2, 3, 4])
+    buf.store(data)
+    buf.transfer()
+
+    out_data = bytearray(4)
+    buf.read(out_data, 4)
+
+    assert out_data[0] == 1
+    assert out_data[1] == 2
+    assert out_data[2] == 3
+    assert out_data[3] == 4
+
+def test_buffer_read_success_mapped(gl_context):
+    buf = Buffer(4, BufferFlags.MAP_WRITE_BIT | BufferFlags.MAP_READ_BIT)
+    data = bytearray([1, 2, 3, 4])
+    buf.map()
+    buf.store(data)
+    buf.transfer()
+
+    out_data = bytearray(4)
+    buf.map()
+    buf.read(out_data, 4)
+
+    assert out_data[0] == 1
+    assert out_data[1] == 2
+    assert out_data[2] == 3
+    assert out_data[3] == 4
+
+def test_buffer_read_success_persistent(gl_context):
+    buf = Buffer(4, BufferFlags.MAP_WRITE_BIT | BufferFlags.MAP_READ_BIT | BufferFlags.MAP_PERSISTENT_BIT)
+    data = bytearray([1, 2, 3, 4])
+    buf.store(data)
+    buf.transfer()
+
+    out_data = bytearray(2)
+    buf.read(out_data, 2, 2)
+
+    assert out_data[0] == 3
+    assert out_data[1] == 4
+
+def test_buffer_read_fail_buffer_too_small(gl_context):
+    buf = Buffer(4, BufferFlags.DYNAMIC_STORAGE_BIT)
+    data = bytearray([1, 2, 3, 4])
+    buf.store(data)
+    buf.transfer()
+
+    out_data = bytearray(3)
+    with pytest.raises(ValueError):
+        buf.read(out_data, 4)
+
+def test_buffer_read_fail_not_readable(gl_context):
+    buf = Buffer(4, BufferFlags.MAP_WRITE_BIT | BufferFlags.MAP_PERSISTENT_BIT)
+    data = bytearray([1, 2, 3, 4])
+    buf.store(data)
+    buf.transfer()
+
+    out_data = bytearray(16)
+    with pytest.raises(RuntimeError):
+        buf.read(out_data, 4)
+
+def test_buffer_read_fail_not_mapped(gl_context):
+    buf = Buffer(4, BufferFlags.MAP_WRITE_BIT | BufferFlags.MAP_READ_BIT)
+    data = bytearray([1, 2, 3, 4])
+    buf.map()
+    buf.store(data)
+    buf.transfer()
+
+    out_data = bytearray(4)
+    with pytest.raises(RuntimeError):
+        buf.read(out_data, 4)

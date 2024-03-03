@@ -110,6 +110,68 @@ static PyObject* repr(PyBuffer* self)
         (uintptr_t)self);
 }
 
+static PyObject* buf_read(PyBuffer* self, PyObject* args, PyObject* kwargs)
+{
+    static char* kwNames[] = {"out", "size", "offset", NULL};
+
+    PyObject* result = NULL;
+
+    Py_buffer outBuffer = {0};
+    GLsizeiptr size = 0;
+    GLintptr offset = 0;
+    if (!PyArg_ParseTupleAndKeywords(
+        args, kwargs, "w*L|L", kwNames,
+        &outBuffer, &size, &offset))
+        goto end;
+
+    if (!utils_check_buffer_contiguous(&outBuffer))
+        goto end;
+
+    ThrowIfGoto(
+        size + offset > self->size,
+        PyExc_ValueError,
+        "Requested size and offset exceed buffer size.",
+        end);
+
+    if (size > outBuffer.len)
+    {
+        PyErr_Format(PyExc_ValueError, "Buffer that was passed in is smaller than requested size. (buffer size: %zu, requested: %zu)", outBuffer.len, size);
+        goto end;
+    }
+
+    if (self->flags & GL_DYNAMIC_STORAGE_BIT)
+        glGetNamedBufferSubData(self->id, offset, size, outBuffer.buf);
+    else
+    {
+        ThrowIfGoto(
+            !(self->flags & GL_MAP_READ_BIT),
+            PyExc_RuntimeError,
+            "Mappable buffer has to have flag MAP_READ_BIT set to allow reading.",
+            end);
+
+        ThrowIfGoto(
+            self->dataPtr == NULL,
+            PyExc_RuntimeError,
+            "Mappable buffer has to be mapped before attempting to read data. Map buffer or use MAP_PERSISTENT_BIT.",
+            end);
+
+        int result = PyBuffer_FromContiguous(&outBuffer, (char*)self->dataPtr + offset, size, 'C');
+        ThrowIfGoto(
+            result == -1,
+            PyExc_RuntimeError,
+            "Couldn't read data from buffer.",
+            end);
+    }
+
+    result = Py_NewRef(Py_None);
+
+end:
+    if (outBuffer.buf != NULL)
+        PyBuffer_Release(&outBuffer);
+
+    return result;
+}
+
 static void dealloc(PyBuffer* self)
 {
     delete(self, NULL);
@@ -147,23 +209,6 @@ static int init(PyBuffer* self, PyObject* args, PyObject* Py_UNUSED(kwargs))
     return 0;
 }
 
-static PyMemberDef members[] = {
-    {"id", T_UINT, offsetof(PyBuffer, id), READONLY, NULL},
-    {"size", T_ULONGLONG, offsetof(PyBuffer, size), READONLY, NULL},
-    {"current_offset", T_ULONGLONG, offsetof(PyBuffer, currentOffset), 0, NULL},
-    {0},
-};
-
-static PyMethodDef methods[] = {
-    {"delete", (PyCFunction)delete, METH_NOARGS, NULL},
-    {"store", (PyCFunction)store, METH_O, NULL},
-    {"transfer", (PyCFunction)transfer, METH_NOARGS, NULL},
-    {"reset_offset", (PyCFunction)reset_offset, METH_NOARGS, NULL},
-    {"map", (PyCFunction)map, METH_NOARGS, NULL},
-    // TODO {"read", py_mappedbuffer_read, METH_VARARGS, NULL},
-    {0},
-};
-
 PyTypeObject pyBufferType = {
     PyVarObject_HEAD_INIT(NULL, 0)
     .tp_new = PyType_GenericNew,
@@ -173,6 +218,17 @@ PyTypeObject pyBufferType = {
     .tp_init = (initproc)init,
     .tp_dealloc = (destructor)dealloc,
     .tp_repr = (reprfunc)repr,
-    .tp_members = members,
-    .tp_methods = methods,
+    .tp_members = (PyMemberDef[]){
+        {"id", T_UINT, offsetof(PyBuffer, id), READONLY, NULL},
+        {"size", T_ULONGLONG, offsetof(PyBuffer, size), READONLY, NULL},
+        {"current_offset", T_ULONGLONG, offsetof(PyBuffer, currentOffset), 0, NULL},
+        {0}},
+    .tp_methods = (PyMethodDef[]){
+        {"delete", (PyCFunction)delete, METH_NOARGS, NULL},
+        {"store", (PyCFunction)store, METH_O, NULL},
+        {"transfer", (PyCFunction)transfer, METH_NOARGS, NULL},
+        {"reset_offset", (PyCFunction)reset_offset, METH_NOARGS, NULL},
+        {"map", (PyCFunction)map, METH_NOARGS, NULL},
+        {"read", (PyCFunction)buf_read, METH_VARARGS | METH_KEYWORDS, NULL},
+        {0}},
 };
