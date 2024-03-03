@@ -8,9 +8,9 @@ typedef struct
     PyObject_HEAD
     GLsizei width, height;
     GLenum format, type;
-    GLint level, xOffset, yOffset;
+    GLint level, xOffset, yOffset, layer;
     GLsizei imageSize;
-    bool generateMipmap; // losing 8 bytes because of this 1 byte long field LOL
+    bool generateMipmap;
 } PyUploadInfo;
 
 extern PyTypeObject pyUploadInfoType;

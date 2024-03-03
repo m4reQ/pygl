@@ -4,7 +4,7 @@
 typedef struct
 {
     PyObject_HEAD
-    GLsizei width, height;
+    GLsizei width, height, layers;
     GLsizei samples;
     GLsizei mipmaps;
     GLenum internalFormat;

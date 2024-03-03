@@ -82,36 +82,14 @@ static bool check_texture_immutable_format(GLuint tex)
     return true;
 }
 
-GLuint texture_create_fb_attachment(PyAttachmentSpec* spec, GLsizei width, GLsizei height)
-{
-    GLuint id = 0;
-    GLenum target = spec->samples > 1 ? GL_TEXTURE_2D_MULTISAMPLE : GL_TEXTURE_2D;
-    glCreateTextures(target, 1, &id);
-
-    if (spec->samples > 1)
-        glTextureStorage2DMultisample(id, spec->samples, spec->format, spec->width, spec->height, GL_TRUE);
-    else
-        glTextureStorage2D(id, 1, spec->format, spec->width, spec->height);
-
-    PyTextureSpec texSpec = {
-        .minFilter = spec->minFilter,
-        .magFilter = spec->magFilter,
-        .mipmaps = 1,
-        .wrapMode = GL_CLAMP_TO_EDGE,
-    };
-    set_default_texture_parameters(id, &texSpec);
-
-    return id;
-}
-
-PyObject* py_texture_delete(PyTexture* self, PyObject* Py_UNUSED(args))
+static PyObject* delete(PyTexture* self, PyObject* Py_UNUSED(args))
 {
     glDeleteTextures(1, &self->id);
     self->id = 0;
     Py_RETURN_NONE;
 }
 
-PyObject* py_texture_upload(PyTexture* self, PyObject* args, PyObject* kwargs)
+static PyObject* upload(PyTexture* self, PyObject* args, PyObject* kwargs)
 {
     static char* kwNames[] = {"info", "data", NULL};
 
@@ -178,13 +156,13 @@ end:
     return result;
 }
 
-PyObject* py_texture_bind(PyTexture* self, PyObject* Py_UNUSED(args))
+static PyObject* bind(PyTexture* self, PyObject* Py_UNUSED(args))
 {
     glBindTexture(self->bindTarget, self->id);
     Py_RETURN_NONE;
 }
 
-PyObject* py_texture_bind_to_unit(PyTexture* self, PyObject* unit)
+static PyObject* bind_to_unit(PyTexture* self, PyObject* unit)
 {
     ThrowIf(
         !PyLong_Check(unit),
@@ -203,7 +181,7 @@ PyObject* py_texture_bind_to_unit(PyTexture* self, PyObject* unit)
     Py_RETURN_NONE;
 }
 
-PyObject* py_texture_bind_textures(PyObject* Py_UNUSED(cls), PyObject* args, PyObject* kwargs)
+static PyObject* bind_textures(PyObject* Py_UNUSED(cls), PyObject* args, PyObject* kwargs)
 {
     static char* kwNames[] = {"textures", "first", NULL};
 
@@ -229,17 +207,11 @@ PyObject* py_texture_bind_textures(PyObject* Py_UNUSED(cls), PyObject* args, PyO
     Py_RETURN_NONE;
 }
 
-void py_texture_dealloc(PyTexture* self)
-{
-    py_texture_delete(self, NULL);
-    Py_TYPE(self)->tp_free(self);
-}
-
-PyObject* py_texture_set_parameter(PyTexture* self, PyObject* args)
+static PyObject* set_parameter(PyTexture* self, PyObject* args)
 {
     GLenum param = 0;
     PyObject* value = NULL;
-    if (!PyArg_ParseTuple(args, "IO"))
+    if (!PyArg_ParseTuple(args, "IO", &param, &value))
         return NULL;
 
     if (PyLong_Check(value))
@@ -255,17 +227,25 @@ PyObject* py_texture_set_parameter(PyTexture* self, PyObject* args)
     Py_RETURN_NONE;
 }
 
-PyObject* py_texture_generate_mipmap(PyTexture* self, PyObject* Py_UNUSED(args))
+static PyObject* generate_mipmap(PyTexture* self, PyObject* Py_UNUSED(args))
 {
     glGenerateTextureMipmap(self->id);
     Py_RETURN_NONE;
 }
 
+void py_texture_dealloc(PyTexture* self)
+{
+    delete(self, NULL);
+    Py_TYPE(self)->tp_free(self);
+}
+
+#pragma region Internal
 bool texture_create(PyTexture* tex, GLenum target, PyTextureSpec* spec, bool setParameters)
 {
     tex->bindTarget = target;
     tex->width = spec->width;
     tex->height = spec->height;
+    tex->layers = spec->layers;
 
     glCreateTextures(target, 1, &tex->id);
 
@@ -279,6 +259,12 @@ bool texture_create(PyTexture* tex, GLenum target, PyTextureSpec* spec, bool set
     case GL_TEXTURE_2D_MULTISAMPLE:
         glTextureStorage2DMultisample(tex->id, spec->samples, spec->internalFormat, spec->width, spec->height, GL_TRUE);
         break;
+    case GL_TEXTURE_2D_ARRAY:
+        glTextureStorage3D(tex->id, spec->mipmaps, spec->internalFormat, spec->width, spec->height, spec->layers);
+        break;
+    case GL_TEXTURE_2D_MULTISAMPLE_ARRAY:
+        glTextureStorage3DMultisample(tex->id, spec->samples, spec->internalFormat, spec->width, spec->height, spec->layers, GL_TRUE);
+        break;
     default:
         PyErr_SetString(PyExc_ValueError, "Unsupported texture target encountered.");
         return false;
@@ -290,6 +276,28 @@ bool texture_create(PyTexture* tex, GLenum target, PyTextureSpec* spec, bool set
     return check_texture_immutable_format(tex->id);
 }
 
+GLuint texture_create_fb_attachment(PyAttachmentSpec* spec, GLsizei width, GLsizei height)
+{
+    GLuint id = 0;
+    GLenum target = spec->samples > 1 ? GL_TEXTURE_2D_MULTISAMPLE : GL_TEXTURE_2D;
+    glCreateTextures(target, 1, &id);
+
+    if (spec->samples > 1)
+        glTextureStorage2DMultisample(id, spec->samples, spec->format, spec->width, spec->height, GL_TRUE);
+    else
+        glTextureStorage2D(id, 1, spec->format, spec->width, spec->height);
+
+    PyTextureSpec texSpec = {
+        .minFilter = spec->minFilter,
+        .magFilter = spec->magFilter,
+        .mipmaps = 1,
+        .wrapMode = GL_CLAMP_TO_EDGE,
+    };
+    set_default_texture_parameters(id, &texSpec);
+
+    return id;
+}
+
 void texture_set_parameter_int(GLuint tex, GLenum parameter, GLint value)
 {
     glTextureParameteri(tex, parameter, value);
@@ -299,3 +307,15 @@ void texture_set_parameter_float(GLuint tex, GLenum parameter, GLfloat value)
 {
     glTextureParameterf(tex, parameter, value);
 }
+#pragma endregion
+
+PyMethodDef pyTextureMethods[] = {
+    {"delete", (PyCFunction)delete, METH_NOARGS, NULL},
+    {"upload", (PyCFunction)upload, METH_VARARGS | METH_KEYWORDS, NULL},
+    {"set_parameter", (PyCFunction)set_parameter, METH_VARARGS, NULL},
+    {"bind", (PyCFunction)bind, METH_NOARGS, NULL},
+    {"bind_to_unit", (PyCFunction)bind_to_unit, METH_O, NULL},
+    {"bind_textures", (PyCFunction)bind_textures, METH_VARARGS | METH_VARARGS | METH_STATIC, NULL},
+    {"generate_mipmap", (PyCFunction)generate_mipmap, METH_NOARGS, NULL},
+    {0},
+};

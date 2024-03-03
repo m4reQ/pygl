@@ -160,6 +160,7 @@ class TextureSpec:
     width: int
     height: int
     internal_format: int
+    layers: int
     samples: int = 1
     mipmaps: int = 4
     min_filter: int
@@ -170,6 +171,7 @@ class TextureSpec:
                  width: int,
                  height: int,
                  internal_format: InternalFormat,
+                 layers: int = 0,
                  samples: int = 1,
                  mipmaps: int = 4,
                  min_filter: MinFilter = MinFilter.LINEAR_MIPMAP_LINEAR,
@@ -190,6 +192,7 @@ class UploadInfo:
     level: int
     x_offset: int
     y_offset: int
+    layer: int
     image_size: int
     generate_mipmap: bool
 
@@ -201,6 +204,7 @@ class UploadInfo:
                  level: int = 0,
                  x_offset: int = 0,
                  y_offset: int = 0,
+                 layer: int = 0,
                  image_size: int = 0,
                  generate_mipmap: bool = True) -> None: ...
 
@@ -212,7 +216,24 @@ class Texture2D:
     height: int
 
     @staticmethod
-    def bind_textures(textures: list[Texture2D], first: int = 0) -> None: ...
+    def bind_textures(textures: list[Texture2D | Texture2DArray], first: int = 0) -> None: ...
+
+    def __init__(self, spec: TextureSpec) -> None: ...
+
+    def delete(self) -> None: ...
+    def set_parameter(self, param: TextureParameter, value: int | float) -> None: ...
+    def bind(self) -> None: ...
+    def bind_to_unit(self, unit: int) -> None: ...
+    def upload(self, info: UploadInfo, data: TSupportsBuffer) -> None: ...
+    def generate_mipmap(self) -> None: ...
+
+class Texture2DArray:
+    width: int
+    height: int
+    layers: int
+
+    @staticmethod
+    def bind_textures(textures: list[Texture2D | Texture2DArray], first: int = 0) -> None: ...
 
     def __init__(self, spec: TextureSpec) -> None: ...
 
