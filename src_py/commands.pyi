@@ -93,6 +93,7 @@ class StringName:
     VERSION: int
     RENDERER: int
     VENDOR: int
+    EXTENSIONS: int
 
 def cull_face(face: FrontFace) -> None: ...
 def front_face(face: CullFace) -> None: ...

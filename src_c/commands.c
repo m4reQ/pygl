@@ -244,6 +244,7 @@ static EnumValue getStringValues[] = {
     {"VERSION", GL_VERSION},
     {"RENDERER", GL_RENDERER},
     {"VENDOR", GL_VENDOR},
+    {"EXTENSIONS", GL_EXTENSIONS},
     {0},
 };
 
