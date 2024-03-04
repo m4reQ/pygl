@@ -4,7 +4,7 @@ import pytest
 import pygl
 
 
-@pytest.fixture(scope='module')
+@pytest.fixture(scope='session')
 def gl_context(request: pytest.FixtureRequest):
     glfw.init()
     glfw.window_hint(glfw.CONTEXT_VERSION_MAJOR, 4)

@@ -34,9 +34,5 @@ static PyModuleDef moduleDef = {
 
 PyMODINIT_FUNC PyInit_init()
 {
-    PyObject* mod = PyModule_Create(&moduleDef);
-    if (!mod)
-        return NULL;
-
-    return mod;
+    return PyModule_Create(&moduleDef);
 }
