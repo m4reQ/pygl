@@ -14,7 +14,6 @@ static int py_upload_info_init(PyUploadInfo* self, PyObject* args, PyObject* kwa
         "pixel_type", "level", "x_offset", "y_offset", "layer", "image_size", "generate_mipmap",
         NULL};
 
-    // TODO find out if objects are zero-initialized, if so remove assignments with 0
     self->type = GL_UNSIGNED_BYTE;
     self->level = 0;
     self->xOffset = 0;

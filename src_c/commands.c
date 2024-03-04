@@ -3,6 +3,30 @@
 #include "utility.h"
 #include "enum.h"
 
+static PyObject* get_string(PyObject* Py_UNUSED(self), PyObject* args, PyObject* kwargs)
+{
+    static char* kwNames[] = {"name", "index", NULL};
+
+    GLenum name = 0;
+    GLuint index = -1;
+    if (!PyArg_ParseTupleAndKeywords(args, kwargs, "I|!O", kwNames, &name, &index))
+        return NULL;
+
+    const char* string = NULL;
+    if (index != -1)
+        string = glGetStringi(name, index);
+    else
+        string = glGetString(name, index);
+
+    if (string == NULL)
+    {
+        PyErr_SetString(PyExc_RuntimeError, "Couldn't get GL string for specified name.");
+        return NULL;
+    }
+
+    return PyUnicode_FromString(string);
+}
+
 static PyObject* py_blend_func(PyObject* Py_UNUSED(self), PyObject* args)
 {
     GLenum src = 0, dst = 0;
@@ -108,6 +132,7 @@ static PyMethodDef moduleMethods[] = {
     {"enable", py_enable, METH_O, NULL},
     {"hint", py_hint, METH_VARARGS, NULL},
     {"blend_func", py_blend_func, METH_VARARGS, NULL},
+    {"get_string", get_string, METH_VARARGS | METH_KEYWORDS, NULL},
     {0},
 };
 static PyModuleDef moduleDef = {
@@ -214,6 +239,14 @@ static EnumValue blendFuncValues[] = {
     {0},
 };
 
+static EnumValue getStringValues[] = {
+    {"SHADING_LANGUAGE_VERSION", GL_SHADING_LANGUAGE_VERSION},
+    {"VERSION", GL_VERSION},
+    {"RENDERER", GL_RENDERER},
+    {"VENDOR", GL_VENDOR},
+    {0},
+};
+
 PyMODINIT_FUNC PyInit_commands()
 {
     PyObject* mod = PyModule_Create(&moduleDef);
@@ -242,6 +275,9 @@ PyMODINIT_FUNC PyInit_commands()
         return NULL;
 
     if (!enum_add(mod, "BlendFactor", blendFuncValues))
+        return NULL;
+
+    if (!enum_add(mod, "StringName", getStringValues))
         return NULL;
 
     return mod;
