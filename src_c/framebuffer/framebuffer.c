@@ -135,6 +135,10 @@ static PyObject* unbind(PyFramebuffer* Py_UNUSED(self), PyObject* Py_UNUSED(args
 static PyObject* delete(PyFramebuffer* self, PyObject* Py_UNUSED(args))
 {
     delete_framebuffer_contents(self);
+
+    PyMem_Free(self->attachments);
+    self->attachments = NULL;
+
     Py_RETURN_NONE;
 }
 
@@ -191,6 +195,8 @@ static int init(PyFramebuffer* self, PyObject* args, PyObject* Py_UNUSED(kwargs)
     if (!PyArg_ParseTuple(args, "O!ii", &PyList_Type, &self->specs, &self->width, &self->height))
         return -1;
 
+    Py_INCREF(self->specs);
+
     ThrowIf(
         self->width < 0 || self->height < 0,
         PyExc_ValueError,
@@ -203,8 +209,6 @@ static int init(PyFramebuffer* self, PyObject* args, PyObject* Py_UNUSED(kwargs)
         PyExc_ValueError,
         "At least one framebuffer attachment must be specified.",
         -1);
-
-    Py_INCREF(self->specs);
 
     glCreateFramebuffers(1, &self->id);
 
@@ -224,6 +228,8 @@ static int init(PyFramebuffer* self, PyObject* args, PyObject* Py_UNUSED(kwargs)
             drawBuffers[i] = GL_COLOR_ATTACHMENT0 + i;
 
         glNamedFramebufferDrawBuffers(self->id, colorAttachmentsCount, drawBuffers);
+
+        PyMem_Free(drawBuffers);
     }
 
     return check_framebuffer_complete(self->id) ? 0 : -1;

@@ -38,9 +38,12 @@ bool convert_attachment(PyObject* attachment, GLenum* result)
 
         *result = GL_COLOR_ATTACHMENT0 + (GLuint)offset;
     }
-    else if (PyLong_Check(attachment)) // Detech Attachment enum
+    else if (PyLong_Check(attachment)) // Detect Attachment enum
     {
-        *result = PyLong_AsUnsignedLong(attachment);
+        PyObject* _long = PyNumber_Long(attachment);
+        assert(_long != NULL && "Couldn't convert attachment to long, but it is convertible");
+        *result = PyLong_AsUnsignedLong(_long);
+        Py_DECREF(_long);
     }
     else
     {

@@ -83,7 +83,9 @@ static PyObject* store(PyBuffer* self, PyObject* data)
     result = Py_NewRef(Py_None);
 
 end:
-    PyBuffer_Release(&dataBuffer);
+    if (dataBuffer.buf != NULL)
+        PyBuffer_Release(&dataBuffer);
+
     return result;
 }
 
@@ -91,6 +93,8 @@ static PyObject* delete(PyBuffer* self, PyObject* Py_UNUSED(args))
 {
     glDeleteBuffers(1, &self->id);
     self->id = 0;
+
+    Py_RETURN_NONE;
 }
 
 static PyObject* reset_offset(PyBuffer* self, PyObject* Py_UNUSED(args))
@@ -175,7 +179,7 @@ end:
 static void dealloc(PyBuffer* self)
 {
     delete(self, NULL);
-    if (self->flags & GL_DYNAMIC_STORAGE_BIT)
+    if ((self->flags & GL_DYNAMIC_STORAGE_BIT) && self->dataPtr != NULL)
         PyMem_Free(self->dataPtr);
 
     Py_TYPE(self)->tp_free(self);

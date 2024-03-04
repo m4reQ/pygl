@@ -283,9 +283,9 @@ GLuint texture_create_fb_attachment(PyAttachmentSpec* spec, GLsizei width, GLsiz
     glCreateTextures(target, 1, &id);
 
     if (spec->samples > 1)
-        glTextureStorage2DMultisample(id, spec->samples, spec->format, spec->width, spec->height, GL_TRUE);
+        glTextureStorage2DMultisample(id, spec->samples, spec->format, width, height, GL_TRUE);
     else
-        glTextureStorage2D(id, 1, spec->format, spec->width, spec->height);
+        glTextureStorage2D(id, 1, spec->format, width, height);
 
     PyTextureSpec texSpec = {
         .minFilter = spec->minFilter,

@@ -73,6 +73,8 @@ def test_framebuffer_init_success_texture_attachments(gl_context):
 
     assert fb.id != 0
 
+    fb.delete()
+
 def test_framebuffer_init_success_valid_fields(gl_context):
     attachments = [
         TextureAttachment(1080, 720, AttachmentFormat.RGBA8, 0),
@@ -86,6 +88,8 @@ def test_framebuffer_init_success_valid_fields(gl_context):
     assert fb.size == (1080, 720)
     assert len(fb.specs) == 2
 
+    fb.delete()
+
 def test_framebuffer_init_success_renderbuffer_attachments(gl_context):
     attachments = [
         RenderbufferAttachment(1080, 720, AttachmentFormat.RGBA8, 0),
@@ -94,6 +98,8 @@ def test_framebuffer_init_success_renderbuffer_attachments(gl_context):
     fb = Framebuffer(attachments, 1080, 720)
 
     assert fb.id != 0
+
+    fb.delete()
 
 def test_framebuffer_init_success_non_resizable_attachments(gl_context):
     attachments = [
@@ -104,6 +110,8 @@ def test_framebuffer_init_success_non_resizable_attachments(gl_context):
 
     assert fb.id != 0
 
+    fb.delete()
+
 def test_framebuffer_init_success_multisampled_attachments(gl_context):
     attachments = [
         TextureAttachment(1080, 720, AttachmentFormat.RGBA8, 0, samples=2),
@@ -112,6 +120,8 @@ def test_framebuffer_init_success_multisampled_attachments(gl_context):
     fb = Framebuffer(attachments, 1080, 720)
 
     assert fb.id != 0
+
+    fb.delete()
 
 def test_framebuffer_get_attachment_id_success_int(gl_context):
     attachments = [
@@ -122,6 +132,8 @@ def test_framebuffer_get_attachment_id_success_int(gl_context):
 
     assert fb.get_attachment_id(0) != 0
 
+    fb.delete()
+
 def test_framebuffer_get_attachment_id_success_enum(gl_context):
     attachments = [
         TextureAttachment(1080, 720, AttachmentFormat.RGBA8, 0),
@@ -130,6 +142,8 @@ def test_framebuffer_get_attachment_id_success_enum(gl_context):
     fb = Framebuffer(attachments, 1080, 720)
 
     assert fb.get_attachment_id(Attachment.DEPTH_STENCIL_ATTACHMENT) != 0
+
+    fb.delete()
 
 def test_framebuffer_get_attachment_id_failure(gl_context):
     attachments = [
@@ -141,6 +155,8 @@ def test_framebuffer_get_attachment_id_failure(gl_context):
     with pytest.raises(RuntimeError):
         fb.get_attachment_id(2)
 
+    fb.delete()
+
 def test_framebuffer_resize_success(gl_context):
     fb = Framebuffer([TextureAttachment(1080, 720, AttachmentFormat.RGBA8, 0)], 1080, 720)
     fb.resize(512, 512)
@@ -148,13 +164,19 @@ def test_framebuffer_resize_success(gl_context):
     assert fb.width == 512
     assert fb.height == 512
 
+    fb.delete()
+
 def test_framebuffer_bind_success(gl_context):
     fb = Framebuffer([TextureAttachment(1080, 720, AttachmentFormat.RGBA8, 0)], 1080, 720)
     fb.bind()
 
+    fb.delete()
+
 def test_framebuffer_unbind_success(gl_context):
     fb = Framebuffer([TextureAttachment(1080, 720, AttachmentFormat.RGBA8, 0)], 1080, 720)
     fb.unbind()
+
+    fb.delete()
 
 def test_framebuffer_init_failure_no_attachments(gl_context):
     with pytest.raises(ValueError):
