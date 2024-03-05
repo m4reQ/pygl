@@ -134,6 +134,30 @@ static PyObject* clear_color(PyObject* Py_UNUSED(self), PyObject* args)
     Py_RETURN_NONE;
 }
 
+static PyObject* scissor(PyObject* Py_UNUSED(self), PyObject* args)
+{
+    GLint x = 0, y = 0;
+    GLsizei width = 0, height = 0;
+    if (!PyArg_ParseTuple(args, "iiii", &x, &y, &width, &height))
+        return NULL;
+
+    glScissor(x, y, width, height);
+
+    Py_RETURN_NONE;
+}
+
+static PyObject* viewport(PyObject* Py_UNUSED(self), PyObject* args)
+{
+    GLint x = 0, y = 0;
+    GLsizei width = 0, height = 0;
+    if (!PyArg_ParseTuple(args, "iiii", &x, &y, &width, &height))
+        return NULL;
+
+    glViewport(x, y, width, height);
+
+    Py_RETURN_NONE;
+}
+
 static PyMethodDef moduleMethods[] = {
     {"polygon_mode", py_polygon_mode, METH_VARARGS, NULL},
     {"depth_func", py_depth_func, METH_O, NULL},
@@ -145,6 +169,8 @@ static PyMethodDef moduleMethods[] = {
     {"blend_func", py_blend_func, METH_VARARGS, NULL},
     {"get_string", get_string, METH_VARARGS | METH_KEYWORDS, NULL},
     {"clear_color", clear_color, METH_VARARGS, NULL},
+    {"scissor", scissor, METH_VARARGS, NULL},
+    {"viewport", viewport, METH_VARARGS, NULL},
     {0},
 };
 static PyModuleDef moduleDef = {
