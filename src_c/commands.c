@@ -123,6 +123,17 @@ static PyObject* py_enable(PyObject* Py_UNUSED(self), PyObject* cap)
     Py_RETURN_NONE;
 }
 
+static PyObject* clear_color(PyObject* Py_UNUSED(self), PyObject* args)
+{
+    GLfloat r = 0.0, g = 0.0, b = 0.0, a = 0.0;
+    if (!PyArg_ParseTuple(args, "ffff", &r, &g, &b, &a))
+        return NULL;
+
+    glClearColor(r, g, b, a);
+
+    Py_RETURN_NONE;
+}
+
 static PyMethodDef moduleMethods[] = {
     {"polygon_mode", py_polygon_mode, METH_VARARGS, NULL},
     {"depth_func", py_depth_func, METH_O, NULL},
@@ -133,6 +144,7 @@ static PyMethodDef moduleMethods[] = {
     {"hint", py_hint, METH_VARARGS, NULL},
     {"blend_func", py_blend_func, METH_VARARGS, NULL},
     {"get_string", get_string, METH_VARARGS | METH_KEYWORDS, NULL},
+    {"clear_color", clear_color, METH_VARARGS, NULL},
     {0},
 };
 static PyModuleDef moduleDef = {
