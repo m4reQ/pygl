@@ -103,6 +103,31 @@ static PyObject* reset_offset(PyBuffer* self, PyObject* Py_UNUSED(args))
     Py_RETURN_NONE;
 }
 
+static PyObject* bind(PyBuffer* self, PyObject* target)
+{
+    if (!PyLong_Check(target))
+    {
+        PyErr_SetString(PyExc_TypeError, "target has to be of type int.");
+        return NULL;
+    }
+
+    glBindBuffer(PyLong_AsUnsignedLong(target), self->id);
+
+    Py_RETURN_NONE;
+}
+
+static PyObject* bind_base(PyBuffer* self, PyObject* args)
+{
+    GLenum target = 0;
+    GLuint index = 0;
+    if (!PyArg_ParseTuple(args, "II", &target, &index))
+        return NULL;
+
+    glBindBufferBase(target, index, self->id);
+
+    Py_RETURN_NONE;
+}
+
 static PyObject* repr(PyBuffer* self)
 {
     return PyUnicode_FromFormat(
