@@ -1,8 +1,12 @@
 #include "shaderStage.h"
 
-static int py_shaderstage_init(PyShaderStage* self, PyObject* args, PyObject* Py_UNUSED(kwargs))
+static int py_shaderstage_init(PyShaderStage* self, PyObject* args, PyObject* kwargs)
 {
-    if (!PyArg_ParseTuple(args, "IU", &self->type, &self->pyFilepath))
+    static char* kwNames[] = {"type", "filepath", "from_source", NULL};
+
+    if (!PyArg_ParseTupleAndKeywords(
+            args, kwargs, "IU|p", kwNames,
+            &self->type, &self->pyFilepath, &self->fromSource))
         return -1;
 
     Py_INCREF(self->pyFilepath);
@@ -18,16 +22,17 @@ static void py_shaderstage_dealloc(PyShaderStage* self)
 static PyObject* py_shaderstage_repr(PyShaderStage* self)
 {
     return PyUnicode_FromFormat(
-        "<%s [type: %d, filepath: %U] at %X>",
+        "<%s [type: %d, filepath: %s] at %zX>",
         Py_TYPE(self)->tp_name,
         self->type,
-        self->pyFilepath,
+        self->fromSource ? "None" : PyUnicode_AsUTF8(self->pyFilepath),
         (intptr_t)self);
 }
 
 static PyMemberDef pyShaderStageMembers[] = {
     {"type", T_UINT, offsetof(PyShaderStage, type), 0, NULL},
     {"filepath", T_OBJECT_EX, offsetof(PyShaderStage, pyFilepath), 0, NULL},
+    {"from_source", T_BOOL, offsetof(PyShaderStage, fromSource), 0, NULL},
     {0},
 };
 
