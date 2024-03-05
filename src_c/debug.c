@@ -144,4 +144,6 @@ PyMODINIT_FUNC PyInit_debug()
 
     if (!enum_add(mod, "DebugType", debugTypeValues))
         return NULL;
+
+    return mod;
 }
