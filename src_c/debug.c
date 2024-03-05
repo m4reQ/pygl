@@ -1,6 +1,7 @@
 #include <Python.h>
 #include <glad/gl.h>
 #include "utility.h"
+#include "enum.h"
 
 typedef struct
 {
@@ -93,6 +94,34 @@ static PyMethodDef moduleMethods[] = {
     {0},
 };
 
+static EnumValue debugSeverityValues[] = {
+    {"DEBUG_SEVERITY_NOTIFICATION", GL_DEBUG_SEVERITY_NOTIFICATION},
+    {"DEBUG_SEVERITY_LOW", GL_DEBUG_SEVERITY_LOW},
+    {"DEBUG_SEVERITY_MEDIUM", GL_DEBUG_SEVERITY_MEDIUM},
+    {"DEBUG_SEVERITY_HIGH", GL_DEBUG_SEVERITY_HIGH},
+    {0},
+};
+static EnumValue debugSourceValues[] = {
+    {"DEBUG_SOURCE_API", GL_DEBUG_SOURCE_API},
+    {"DEBUG_SOURCE_APPLICATION", GL_DEBUG_SOURCE_APPLICATION},
+    {"DEBUG_SOURCE_THIRD_PARTY", GL_DEBUG_SOURCE_THIRD_PARTY},
+    {"DEBUG_SOURCE_WINDOW_SYSTEM", GL_DEBUG_SOURCE_WINDOW_SYSTEM},
+    {"DEBUG_SOURCE_OTHER", GL_DEBUG_SOURCE_OTHER},
+    {0},
+};
+static EnumValue debugTypeValues[] = {
+    {"DEBUG_TYPE_DEPRECATED_BEHAVIOR", GL_DEBUG_TYPE_DEPRECATED_BEHAVIOR},
+    {"DEBUG_TYPE_MARKER", GL_DEBUG_TYPE_MARKER},
+    {"DEBUG_TYPE_OTHER", GL_DEBUG_TYPE_OTHER},
+    {"DEBUG_TYPE_UNDEFINED_BEHAVIOR", GL_DEBUG_TYPE_UNDEFINED_BEHAVIOR},
+    {"DEBUG_TYPE_PORTABILITY", GL_DEBUG_TYPE_PORTABILITY},
+    {"DEBUG_TYPE_POP_GROUP", GL_DEBUG_TYPE_POP_GROUP},
+    {"DEBUG_TYPE_PUSH_GROUP", GL_DEBUG_TYPE_PUSH_GROUP},
+    {"DEBUG_TYPE_ERROR", GL_DEBUG_TYPE_ERROR},
+    {"DEBUG_TYPE_PERFORMANCE", GL_DEBUG_TYPE_PERFORMANCE},
+    {0},
+};
+
 static PyModuleDef moduleDef = {
     PyModuleDef_HEAD_INIT,
     .m_name = "pygl.debug",
@@ -103,5 +132,16 @@ static PyModuleDef moduleDef = {
 
 PyMODINIT_FUNC PyInit_debug()
 {
-    return PyModule_Create(&moduleDef);
+    PyObject* mod = PyModule_Create(&moduleDef);
+    if (!mod)
+        return NULL;
+
+    if (!enum_add(mod, "DebugSeverity", debugSeverityValues))
+        return NULL;
+
+    if (!enum_add(mod, "DebugSource", debugSourceValues))
+        return NULL;
+
+    if (!enum_add(mod, "DebugType", debugTypeValues))
+        return NULL;
 }
