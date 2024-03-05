@@ -160,6 +160,19 @@ static PyObject* multi_draw_elements_indirect(PyObject* Py_UNUSED(self), PyObjec
     Py_RETURN_NONE;
 }
 
+static PyObject* clear(PyObject* Py_UNUSED(self), PyObject* mask)
+{
+    if (!PyLong_Check(mask))
+    {
+        PyErr_SetString(PyExc_TypeError, "mask has to be of type int.");
+        return NULL;
+    }
+
+    glClear(PyLong_AsUnsignedLong(mask));
+
+    Py_RETURN_NONE;
+}
+
 static PyModuleDef moduleDef = {
     PyModuleDef_HEAD_INIT,
     .m_name = "pygl.rendering",
@@ -177,6 +190,7 @@ static PyModuleDef moduleDef = {
         {"draw_elements_indirect", draw_elements_indirect, METH_VARARGS, NULL},
         {"multi_draw_arrays_indirect", multi_draw_arrays_indirect, METH_VARARGS, NULL},
         {"multi_draw_elements_indirect", multi_draw_elements_indirect, METH_VARARGS, NULL},
+        {"clear", clear, METH_O, NULL},
         {0}},
 };
 
@@ -201,6 +215,12 @@ static EnumValue elementsTypeValues[] = {
     {"UNSIGNED_INT", GL_UNSIGNED_INT},
     {0},
 };
+static EnumValue clearMaskValues[] = {
+    {"COLOR_BUFFER_BIT", GL_COLOR_BUFFER_BIT},
+    {"DEPTH_BUFFER_BIT", GL_DEPTH_BUFFER_BIT},
+    {"STENCIL_BUFFER_BIT", GL_STENCIL_BUFFER_BIT},
+    {0},
+};
 
 PyMODINIT_FUNC PyInit_rendering()
 {
@@ -212,6 +232,9 @@ PyMODINIT_FUNC PyInit_rendering()
         return NULL;
 
     if (!enum_add(mod, "ElementsType", elementsTypeValues))
+        return NULL;
+
+    if (!enum_add(mod, "ClearMask", clearMaskValues))
         return NULL;
 
     return mod;

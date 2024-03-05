@@ -68,9 +68,9 @@ class DepthFunc(enum.IntEnum):
     ALWAYS: int
 
 class PolygonMode(enum.IntEnum):
-    GL_FILL: int
-    GL_POINT: int
-    GL_LINE: int
+    FILL: int
+    POINT: int
+    LINE: int
 
 class BlendFactor(enum.IntEnum):
     ZERO: int
