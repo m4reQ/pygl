@@ -3,15 +3,15 @@ import enum
 from .buffers import Buffer, MappedBuffer
 
 class AttribType(enum.IntEnum):
-    GL_FLOAT: int
-    GL_HALF_FLOAT: int
-    GL_DOUBLE: int
-    GL_BYTE: int
-    GL_UNSIGNED_BYTE: int
-    GL_SHORT: int
-    GL_UNSIGNED_SHORT: int
-    GL_INT: int
-    GL_UNSIGNED_INT: int
+    FLOAT: int
+    HALF_FLOAT: int
+    DOUBLE: int
+    BYTE: int
+    UNSIGNED_BYTE: int
+    SHORT: int
+    UNSIGNED_SHORT: int
+    INT: int
+    UNSIGNED_INT: int
 
 class VertexDescriptor:
     attrib_index: int
@@ -22,7 +22,7 @@ class VertexDescriptor:
 
     def __init__(self,
                  attrib_index: int,
-                 type: int,
+                 type: AttribType,
                  count: int,
                  rows: int = 0,
                  is_normalized: bool = False) -> None: ...
