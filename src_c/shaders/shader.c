@@ -130,7 +130,7 @@ static GLuint create_stage(PyShaderStage* stage)
         ThrowIf(
             fopen_s(&sourceFile, PyUnicode_AsUTF8(stage->pyFilepath), "r"),
             PyExc_RuntimeError,
-            "Couldn't open shader stage source file: %s.",
+            "Couldn't open shader stage source file.",
             -1);
 
         ThrowIf(
@@ -347,15 +347,16 @@ static PyObject* py_shader_set_uniform(PyShader* self, PyObject* args)
     Py_RETURN_NONE;
 }
 
-static PyObject* py_shader_set_uniform_array(PyShader* self, PyObject* args)
+static PyObject* py_shader_set_uniform_array(PyShader* self, PyObject* args, PyObject* kwargs)
 {
+    static char* kwNames[] = {"name", "value", "type", NULL};
     PyObject* result = NULL;
 
     PyObject* name = NULL;
     Py_buffer dataBuffer = {0};
-    GLenum type = 0;
+    GLenum type = GL_FLOAT;
 
-    if (!PyArg_ParseTuple(args, "UIy*", &name, &type, &dataBuffer))
+    if (!PyArg_ParseTupleAndKeywords(args, kwargs, "Uy*|I", kwNames, &name, &dataBuffer, &type))
         goto end;
 
     GLint uniformLocation = get_uniform_location(self, name);
@@ -599,7 +600,7 @@ static PyMethodDef pyShaderMethods[] = {
     {"set_uniform_block_binding", (PyCFunction)py_shader_set_uniform_block_binding, METH_VARARGS, NULL},
     {"get_uniform_block_location", (PyCFunction)py_shader_get_uniform_block_location, METH_O, NULL},
     {"set_uniform", (PyCFunction)py_shader_set_uniform, METH_VARARGS, NULL},
-    {"set_uniform_array", (PyCFunction)py_shader_set_uniform_array, METH_VARARGS, NULL},
+    {"set_uniform_array", (PyCFunction)py_shader_set_uniform_array, METH_VARARGS | METH_KEYWORDS, NULL},
     {"set_uniform_vec2", (PyCFunction)set_uniform_vec2, METH_VARARGS | METH_KEYWORDS, NULL},
     {"set_uniform_vec3", (PyCFunction)set_uniform_vec3, METH_VARARGS | METH_KEYWORDS, NULL},
     {"set_uniform_vec4", (PyCFunction)set_uniform_vec4, METH_VARARGS | METH_KEYWORDS, NULL},
