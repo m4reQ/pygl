@@ -2,13 +2,69 @@
 #include "texture2D.h"
 #include "texture2DArray.h"
 #include "uploadInfo.h"
+#include "textureBase.h"
 #include "../enum.h"
+#include "../utility.h"
 #include <glad/gl.h>
+
+static PyObject* _set_pixel_storei(GLenum param, PyObject* value)
+{
+    ThrowIf(
+        !PyLong_Check(value),
+        PyExc_TypeError,
+        "argument has to be of type int.",
+        NULL);
+
+    glPixelStorei(param, PyLong_AsLong(value));
+
+    Py_RETURN_NONE;
+}
+
+static PyObject* set_pixel_pack_alignment(PyObject* Py_UNUSED(self), PyObject* alignment)
+{
+    return _set_pixel_storei(GL_PACK_ALIGNMENT, alignment);
+}
+
+static PyObject* set_pixel_unpack_alignment(PyObject* Py_UNUSED(self), PyObject* alignment)
+{
+    return _set_pixel_storei(GL_PACK_ALIGNMENT, alignment);
+}
+
+static PyObject* bind_textures(PyObject* Py_UNUSED(cls), PyObject* args, PyObject* kwargs)
+{
+    static char* kwNames[] = {"textures", "first", NULL};
+
+    GLuint first = 0;
+    PyObject* textures = NULL;
+    if (!PyArg_ParseTupleAndKeywords(args, kwargs, "O!|I", kwNames, &PyList_Type, &textures, &first))
+        return NULL;
+
+    GLsizei nTextures = PyList_GET_SIZE(textures);
+    if (nTextures == 0)
+        Py_RETURN_NONE;
+
+    GLuint* textureIds = PyMem_Malloc(sizeof(GLuint) * nTextures);
+    for (GLsizei i = 0; i < nTextures; i++)
+    {
+        PyTexture* tex = (PyTexture*)PyList_GET_ITEM(textures, i);
+        textureIds[i] = tex->id;
+    }
+
+    glBindTextures(first, nTextures, textureIds);
+
+    PyMem_Free(textureIds);
+    Py_RETURN_NONE;
+}
 
 static PyModuleDef moduleDef = {
     PyModuleDef_HEAD_INIT,
     .m_name = "pygl.textures",
     .m_size = -1,
+    .m_methods = (PyMethodDef[]) {
+        {"bind_textures", bind_textures, METH_VARARGS | METH_KEYWORDS, NULL},
+        {"set_pixel_pack_alignment", set_pixel_pack_alignment, METH_O, NULL},
+        {"set_pixel_unpack_alignment", set_pixel_unpack_alignment, METH_O, NULL},
+        {0}},
 };
 
 static EnumValue magFilterValues[] = {
@@ -152,6 +208,13 @@ static EnumValue pixelTypeValues[] = {
     {"UNSIGNED_INT_2_10_10_10_REV", GL_UNSIGNED_INT_2_10_10_10_REV},
     {0},
 };
+static EnumValue compressedInternalFormatValues[] = {
+    {"COMPRESSED_RGB_S3TC_DXT1_EXT", GL_COMPRESSED_RGB_S3TC_DXT1_EXT},
+    {"COMPRESSED_RGBA_S3TC_DXT1_EXT", GL_COMPRESSED_RGBA_S3TC_DXT1_EXT},
+    {"COMPRESSED_RGBA_S3TC_DXT3_EXT", GL_COMPRESSED_RGBA_S3TC_DXT3_EXT},
+    {"COMPRESSED_RGBA_S3TC_DXT5_EXT", GL_COMPRESSED_RGBA_S3TC_DXT5_EXT},
+    {0},
+};
 
 PyMODINIT_FUNC PyInit_textures()
 {
@@ -190,6 +253,9 @@ PyMODINIT_FUNC PyInit_textures()
         return NULL;
 
     if (!enum_add(mod, "PixelType", pixelTypeValues))
+        return NULL;
+
+    if (!enum_add(mod, "CompressedInternalFormat", compressedInternalFormatValues))
         return NULL;
 
     return mod;

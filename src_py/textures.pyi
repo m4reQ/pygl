@@ -1,4 +1,5 @@
 import enum
+import typing as t
 from collections.abc import Buffer as TSupportsBuffer
 
 class TextureParameter(enum.IntEnum):
@@ -125,6 +126,12 @@ class InternalFormat(enum.IntEnum):
     RGBA32I: int
     RGBA32UI: int
 
+class CompressedInternalFormat(enum.IntEnum):
+    COMPRESSED_RGB_S3TC_DXT1_EXT: int
+    COMPRESSED_RGBA_S3TC_DXT1_EXT: int
+    COMPRESSED_RGBA_S3TC_DXT3_EXT: int
+    COMPRESSED_RGBA_S3TC_DXT5_EXT: int
+
 class PixelFormat(enum.IntEnum):
     RED: int
     RG: int
@@ -170,7 +177,7 @@ class TextureSpec:
     def __init__(self,
                  width: int,
                  height: int,
-                 internal_format: InternalFormat,
+                 internal_format: InternalFormat | CompressedInternalFormat,
                  layers: int = 0,
                  samples: int = 1,
                  mipmaps: int = 4,
@@ -199,7 +206,7 @@ class UploadInfo:
     def __init__(self,
                  width: int,
                  height: int,
-                 format: PixelFormat,
+                 format: PixelFormat | CompressedInternalFormat,
                  pixel_type: PixelType = PixelType.UNSIGNED_BYTE,
                  level: int = 0,
                  x_offset: int = 0,
@@ -215,9 +222,6 @@ class Texture2D:
     width: int
     height: int
 
-    @staticmethod
-    def bind_textures(textures: list[Texture2D | Texture2DArray], first: int = 0) -> None: ...
-
     def __init__(self, spec: TextureSpec) -> None: ...
 
     def delete(self) -> None: ...
@@ -232,9 +236,6 @@ class Texture2DArray:
     height: int
     layers: int
 
-    @staticmethod
-    def bind_textures(textures: list[Texture2D | Texture2DArray], first: int = 0) -> None: ...
-
     def __init__(self, spec: TextureSpec) -> None: ...
 
     def delete(self) -> None: ...
@@ -243,3 +244,7 @@ class Texture2DArray:
     def bind_to_unit(self, unit: int) -> None: ...
     def upload(self, info: UploadInfo, data: TSupportsBuffer) -> None: ...
     def generate_mipmap(self) -> None: ...
+
+def bind_textures(textures: list[Texture2D | Texture2DArray], first: int = 0) -> None: ...
+def set_pixel_pack_alignment(alignment: t.Literal[1, 2, 4, 8]) -> None: ...
+def set_pixel_unpack_alignment(alignment: t.Literal[1, 2, 4, 8]) -> None: ...

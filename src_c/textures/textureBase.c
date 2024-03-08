@@ -181,32 +181,6 @@ static PyObject* bind_to_unit(PyTexture* self, PyObject* unit)
     Py_RETURN_NONE;
 }
 
-static PyObject* bind_textures(PyObject* Py_UNUSED(cls), PyObject* args, PyObject* kwargs)
-{
-    static char* kwNames[] = {"textures", "first", NULL};
-
-    GLuint first = 0;
-    PyObject* textures = NULL;
-    if (!PyArg_ParseTupleAndKeywords(args, kwargs, "O!|I", kwNames, &PyList_Type, &textures, &first))
-        return NULL;
-
-    GLsizei nTextures = PyList_GET_SIZE(textures);
-    if (nTextures == 0)
-        Py_RETURN_NONE;
-
-    GLuint* textureIds = PyMem_Malloc(sizeof(GLuint) * nTextures);
-    for (GLsizei i = 0; i < nTextures; i++)
-    {
-        PyTexture* tex = (PyTexture*)PyList_GET_ITEM(textures, i);
-        textureIds[i] = tex->id;
-    }
-
-    glBindTextures(first, nTextures, textureIds);
-
-    PyMem_Free(textureIds);
-    Py_RETURN_NONE;
-}
-
 static PyObject* set_parameter(PyTexture* self, PyObject* args)
 {
     GLenum param = 0;
@@ -315,7 +289,6 @@ PyMethodDef pyTextureMethods[] = {
     {"set_parameter", (PyCFunction)set_parameter, METH_VARARGS, NULL},
     {"bind", (PyCFunction)bind, METH_NOARGS, NULL},
     {"bind_to_unit", (PyCFunction)bind_to_unit, METH_O, NULL},
-    {"bind_textures", (PyCFunction)bind_textures, METH_VARARGS | METH_VARARGS | METH_STATIC, NULL},
     {"generate_mipmap", (PyCFunction)generate_mipmap, METH_NOARGS, NULL},
     {0},
 };
