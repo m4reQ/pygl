@@ -11,6 +11,7 @@ typedef struct
     GLint level, xOffset, yOffset, layer;
     GLsizei imageSize;
     bool generateMipmap;
+    size_t dataOffset;
 } PyUploadInfo;
 
 extern PyTypeObject pyUploadInfoType;

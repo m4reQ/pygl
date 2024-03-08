@@ -11,7 +11,7 @@ static int py_upload_info_init(PyUploadInfo* self, PyObject* args, PyObject* kwa
     static char* kwNames[] = {
         "width", "height", "format",
         /* optional */
-        "pixel_type", "level", "x_offset", "y_offset", "layer", "image_size", "generate_mipmap",
+        "pixel_type", "level", "x_offset", "y_offset", "layer", "image_size", "generate_mipmap", "data_offset",
         NULL};
 
     self->type = GL_UNSIGNED_BYTE;
@@ -20,11 +20,12 @@ static int py_upload_info_init(PyUploadInfo* self, PyObject* args, PyObject* kwa
     self->yOffset = 0;
     self->layer = 0;
     self->imageSize = 0;
+    self->dataOffset = 0;
     if (!PyArg_ParseTupleAndKeywords(
-        args, kwargs, "iiI|Iiiiiip", kwNames,
+        args, kwargs, "iiI|Iiiiiipn", kwNames,
         &self->width, &self->height, &self->format,
         &self->type, &self->level, &self->xOffset, &self->yOffset,
-        &self->layer, &self->imageSize, &self->generateMipmap))
+        &self->layer, &self->imageSize, &self->generateMipmap, &self->dataOffset))
         return -1;
 
     if (self->width < 0 || self->height < 0 || self->layer < 0)
@@ -36,6 +37,12 @@ static int py_upload_info_init(PyUploadInfo* self, PyObject* args, PyObject* kwa
     if (self->imageSize < 0)
     {
         PyErr_SetString(PyExc_ValueError, "Image size for compressed texture must be greater than 0.");
+        return -1;
+    }
+
+    if (self->dataOffset < 0)
+    {
+        PyErr_SetString(PyExc_ValueError, "Data offset cannot be less than 0.");
         return -1;
     }
 
@@ -60,6 +67,7 @@ PyTypeObject pyUploadInfoType = {
         {"layer", T_INT, offsetof(PyUploadInfo, layer), 0, NULL},
         {"image_size", T_INT, offsetof(PyUploadInfo, imageSize), 0, NULL},
         {"generate_mipmap", T_BOOL, offsetof(PyUploadInfo, generateMipmap), 0, NULL},
+        {"data_offset", T_PYSSIZET, offsetof(PyUploadInfo, dataOffset), 0, NULL},
         {0}},
     .tp_getset = (PyGetSetDef[]){
         {"is_compressed", (getter)py_upload_info_is_compressed_get, NULL, NULL, NULL},

@@ -126,7 +126,7 @@ static PyObject* upload(PyTexture* self, PyObject* args, PyObject* kwargs)
             info->width, info->height,
             info->format,
             info->imageSize,
-            dataBuffer.buf);
+            (char*)dataBuffer.buf + info->dataOffset);
     }
     else
     {
@@ -142,7 +142,7 @@ static PyObject* upload(PyTexture* self, PyObject* args, PyObject* kwargs)
             info->level, info->xOffset, info->yOffset,
             info->width, info->height,
             info->format, info->type,
-            dataBuffer.buf);
+            (char*)dataBuffer.buf + info->dataOffset);
     }
 
     if (info->generateMipmap)
