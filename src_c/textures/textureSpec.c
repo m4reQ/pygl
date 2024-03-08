@@ -13,7 +13,7 @@ static int init(PyTextureSpec* self, PyObject* args, PyObject* kwargs)
     self->magFilter = GL_LINEAR;
     self->wrapMode = GL_CLAMP_TO_EDGE;
     if (!PyArg_ParseTupleAndKeywords(
-        args, kwargs, "iiI|iiIII", kwNames,
+        args, kwargs, "iiI|iiIIII", kwNames,
         &self->width, &self->height, &self->internalFormat,
         &self->layers, &self->samples, &self->mipmaps,
         &self->minFilter, &self->magFilter, &self->wrapMode))
