@@ -259,5 +259,7 @@ PyTypeObject pyBufferType = {
         {"reset_offset", (PyCFunction)reset_offset, METH_NOARGS, NULL},
         {"map", (PyCFunction)map, METH_NOARGS, NULL},
         {"read", (PyCFunction)buf_read, METH_VARARGS | METH_KEYWORDS, NULL},
+        {"bind_base", (PyCFunction)bind_base, METH_VARARGS, NULL},
+        {"bind", (PyCFunction)bind, METH_O, NULL},
         {0}},
 };
