@@ -121,6 +121,17 @@ static EnumValue debugTypeValues[] = {
     {"DEBUG_TYPE_PERFORMANCE", GL_DEBUG_TYPE_PERFORMANCE},
     {0},
 };
+static EnumValue errorCodeValues[] = {
+    {"NO_ERROR", GL_NO_ERROR},
+    {"INVALID_ENUM", GL_INVALID_ENUM},
+    {"INVALID_VALUE", GL_INVALID_VALUE},
+    {"INVALID_OPERATION", GL_INVALID_OPERATION},
+    {"INVALID_FRAMEBUFFER_OPERATION", GL_INVALID_FRAMEBUFFER_OPERATION},
+    {"OUT_OF_MEMORY", GL_OUT_OF_MEMORY},
+    {"STACK_UNDERFLOW", GL_STACK_UNDERFLOW},
+    {"STACK_OVERFLOW", GL_STACK_OVERFLOW},
+    {0},
+};
 
 static PyModuleDef moduleDef = {
     PyModuleDef_HEAD_INIT,
@@ -143,6 +154,9 @@ PyMODINIT_FUNC PyInit_debug()
         return NULL;
 
     if (!enum_add(mod, "DebugType", debugTypeValues))
+        return NULL;
+
+    if (!enum_add(mod, "ErrorCode", errorCodeValues))
         return NULL;
 
     return mod;

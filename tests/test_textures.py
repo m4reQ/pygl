@@ -1,5 +1,6 @@
 import pytest
 
+from pygl import textures
 from pygl.textures import (InternalFormat, MinFilter, PixelFormat, Texture2D,
                            Texture2DArray, TextureParameter, TextureSpec,
                            UploadInfo)
@@ -52,13 +53,13 @@ def test_texture_bind_success(gl_context):
 
 def test_texture_bind_textures_success(gl_context):
     spec = TextureSpec(2, 2, InternalFormat.RGB8, layers=3, mipmaps=1)
-    textures = [
+    _textures = [
         Texture2D(spec),
         Texture2D(spec),
         Texture2DArray(spec)
     ]
 
-    Texture2D.bind_textures(textures)
+    textures.bind_textures(_textures)
 
 def test_texture_bind_unit_success(gl_context):
     spec = TextureSpec(64, 64, InternalFormat.RGB8, layers=4)

@@ -25,6 +25,16 @@ class DebugType(enum.IntEnum):
     DEBUG_TYPE_ERROR: int
     DEBUG_TYPE_PERFORMANCE: int
 
+class ErrorCode(enum.IntEnum):
+    NO_ERROR: int
+    INVALID_ENUM: int
+    INVALID_VALUE: int
+    INVALID_OPERATION: int
+    INVALID_FRAMEBUFFER_OPERATION: int
+    OUT_OF_MEMORY: int
+    STACK_UNDERFLOW: int
+    STACK_OVERFLOW: int
+
 TDebugCallback = t.Callable[[int, int, int, int, str, t.Any], t.Any]
 
 def enable(callback: TDebugCallback, user_data: t.Any = None) -> None: ...

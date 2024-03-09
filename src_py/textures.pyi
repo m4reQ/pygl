@@ -202,6 +202,7 @@ class UploadInfo:
     layer: int
     image_size: int
     generate_mipmap: bool
+    data_offset: int
 
     def __init__(self,
                  width: int,
@@ -213,7 +214,8 @@ class UploadInfo:
                  y_offset: int = 0,
                  layer: int = 0,
                  image_size: int = 0,
-                 generate_mipmap: bool = True) -> None: ...
+                 generate_mipmap: bool = True,
+                 data_offset: int = 0) -> None: ...
 
     @property
     def is_compressed(self) -> bool: ...
