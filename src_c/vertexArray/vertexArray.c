@@ -96,8 +96,8 @@ static bool add_vertex_input(GLuint array, GLuint index, PyVertexInput* input)
 
         for (int row = 0; row < descriptor->rows; row++)
         {
-            glEnableVertexArrayAttrib(array, descriptor->attribIndex);
-            glVertexArrayAttribBinding(array, descriptor->attribIndex, index);
+            glEnableVertexArrayAttrib(array, descriptor->attribIndex + row);
+            glVertexArrayAttribBinding(array, descriptor->attribIndex + row, index);
 
             if (!set_attrib_format(array, descriptor, &attribOffset, row))
                 return false;
