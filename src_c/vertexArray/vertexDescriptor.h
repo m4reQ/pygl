@@ -9,7 +9,7 @@ typedef struct
     GLuint attribIndex;
     GLenum type;
     GLint count;
-    GLint rows;
+    GLuint rows;
     bool isNormalized;
 } PyVertexDescriptor;
 

@@ -33,14 +33,14 @@ static GLuint get_gl_type_size(GLenum type)
     return 0;
 }
 
-static bool set_attrib_format(GLuint array, PyVertexDescriptor* desc, GLuint* offset)
+static bool set_attrib_format(GLuint array, PyVertexDescriptor* desc, GLuint* offset, GLuint rowOffset)
 {
     switch (desc->type)
     {
     case GL_DOUBLE:
         glVertexArrayAttribLFormat(
             array,
-            desc->attribIndex,
+            desc->attribIndex + rowOffset,
             desc->count,
             desc->type,
             *offset);
@@ -49,7 +49,7 @@ static bool set_attrib_format(GLuint array, PyVertexDescriptor* desc, GLuint* of
     case GL_HALF_FLOAT:
         glVertexArrayAttribFormat(
             array,
-            desc->attribIndex,
+            desc->attribIndex + rowOffset,
             desc->count,
             desc->type,
             (GLboolean)desc->isNormalized,
@@ -63,7 +63,7 @@ static bool set_attrib_format(GLuint array, PyVertexDescriptor* desc, GLuint* of
     case GL_UNSIGNED_BYTE:
         glVertexArrayAttribIFormat(
             array,
-            desc->attribIndex,
+            desc->attribIndex + rowOffset,
             desc->count,
             desc->type,
             *offset);
@@ -77,8 +77,10 @@ static bool set_attrib_format(GLuint array, PyVertexDescriptor* desc, GLuint* of
     return true;
 }
 
-static bool add_vertex_input(GLuint array, GLuint index, PyVertexInput* input, GLuint* attribOffset)
+static bool add_vertex_input(GLuint array, GLuint index, PyVertexInput* input)
 {
+    GLuint attribOffset = 0;
+
     glVertexArrayVertexBuffer(array, index, input->bufferId, input->offset, input->stride);
     glVertexArrayBindingDivisor(array, index, input->divisor);
 
@@ -96,7 +98,7 @@ static bool add_vertex_input(GLuint array, GLuint index, PyVertexInput* input, G
         glVertexArrayAttribBinding(array, descriptor->attribIndex, index);
 
         for (int row = 0; row < descriptor->rows; row++)
-            if (!set_attrib_format(array, descriptor, attribOffset))
+            if (!set_attrib_format(array, descriptor, &attribOffset, row))
                 return false;
     }
 
@@ -113,19 +115,22 @@ static int py_vertex_array_init(PyVertexArray* self, PyObject* args, PyObject* k
     if (!PyArg_ParseTupleAndKeywords(args, kwargs, "O!|O", kwNames, &PyList_Type, &vertexInputs, &elementBuffer))
         return -1;
 
+    glCreateVertexArrays(1, &self->id);
+
     if (elementBuffer)
+    {
         ThrowIf(
             !PyObject_IsInstance((PyObject*)elementBuffer, (PyObject*)&pyBufferType),
             PyExc_TypeError,
             "Element buffer has to be of type pygl.buffers.Buffer or pygl.buffers.MappedBuffer",
             -1);
 
-    glCreateVertexArrays(1, &self->id);
+        glVertexArrayElementBuffer(self->id, elementBuffer->id);
+    }
 
     int nInputs = PyList_GET_SIZE(vertexInputs);
     for (int i = 0; i < nInputs; i++)
     {
-        GLuint attribOffset = 0;
         PyVertexInput* input = (PyVertexInput*)PyList_GET_ITEM(vertexInputs, i);
 
         ThrowIf(
@@ -134,12 +139,9 @@ static int py_vertex_array_init(PyVertexArray* self, PyObject* args, PyObject* k
             "layout must be a list of pygl.vertex_array.VertexInput objects.",
             -1);
 
-        if (!add_vertex_input(self->id, (GLuint)i, input, &attribOffset))
+        if (!add_vertex_input(self->id, (GLuint)i, input))
             return -1;
     }
-
-    if (elementBuffer)
-        glVertexArrayElementBuffer(self->id, elementBuffer->id);
 
     return 0;
 }

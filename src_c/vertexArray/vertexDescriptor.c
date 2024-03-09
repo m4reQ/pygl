@@ -7,7 +7,7 @@ static int py_vaolayout_init(PyVertexDescriptor* self, PyObject* args, PyObject*
     if (!PyArg_ParseTupleAndKeywords(
             args,
             kwargs,
-            "IIi|ip",
+            "IIi|Ip",
             kwNames,
             &self->attribIndex, &self->type, &self->count, &self->rows, &self->isNormalized))
         return -1;
