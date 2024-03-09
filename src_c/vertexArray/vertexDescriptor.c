@@ -4,6 +4,8 @@
 static int py_vaolayout_init(PyVertexDescriptor* self, PyObject* args, PyObject* kwargs)
 {
     static char* kwNames[] = { "attrib_index", "type", "count", "rows", "is_normalized", NULL };
+
+    self->rows = 1;
     if (!PyArg_ParseTupleAndKeywords(
             args,
             kwargs,

@@ -17,14 +17,14 @@ class VertexDescriptor:
     attrib_index: int
     type: int
     count: int
-    rows: int = 0
+    rows: int = 1
     is_normalized: bool = False
 
     def __init__(self,
                  attrib_index: int,
                  type: AttribType,
                  count: int,
-                 rows: int = 0,
+                 rows: int = 1,
                  is_normalized: bool = False) -> None: ...
 
 class VertexInput:
