@@ -42,18 +42,27 @@ PyObject *module_create_from_info(ModuleInfo *info)
     if (!module)
         return NULL;
 
-    for (PyTypeObject **type = info->types; *type != NULL; type++)
+    if (info->types)
     {
-        if (PyModule_AddType(module, *type))
-            return NULL;
+        PyTypeObject **type = info->types;
+        while (*type != NULL)
+        {
+            if (PyModule_AddType(module, *type))
+                return NULL;
+
+            type++;
+        }
     }
 
     if (info->enums)
     {
-        for (EnumDef **enumDef = info->enums; *enumDef != NULL; enumDef++)
+        EnumDef **enumDef = info->enums;
+        while (*enumDef != NULL)
         {
             if (!add_enum(module, *enumDef))
                 return NULL;
+
+            enumDef++;
         }
     }
 

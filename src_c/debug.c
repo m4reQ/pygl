@@ -37,7 +37,7 @@ static void opengl_callback(GLenum source, GLenum type, GLuint id, GLenum severi
     }
 }
 
-static PyObject *get_error(PyObject *Py_UNUSED(self), PyObject *Py_UNUSED(args))
+static PyObject *py_debug_get_error(PyObject *Py_UNUSED(self), PyObject *Py_UNUSED(args))
 {
     return PyLong_FromUnsignedLong(glGetError());
 }
@@ -82,6 +82,31 @@ static PyObject *py_debug_disable(PyObject *Py_UNUSED(self), PyObject *Py_UNUSED
     Py_RETURN_NONE;
 }
 
+static PyObject *py_debug_insert_message(PyObject *Py_UNUSED(self), PyObject *args)
+{
+    GLenum source = 0;
+    GLenum type = 0;
+    GLint id = 0;
+    GLenum severity = 0;
+    PyObject *msg = NULL;
+
+    if (!PyArg_ParseTuple(args, "IIiIU", &source, &type, &id, &severity, &msg))
+        return NULL;
+
+    size_t msgLength = 0;
+    const char *msgBuffer = PyUnicode_AsUTF8AndSize(msg, &msgLength);
+
+    glDebugMessageInsert(
+        source,
+        type,
+        id,
+        severity,
+        (GLsizei)msgLength,
+        msgBuffer);
+
+    Py_RETURN_NONE;
+}
+
 static void py_debug_free(void *Py_UNUSED(self))
 {
     free_callback_data();
@@ -94,7 +119,8 @@ static EnumDef debugSeverityEnum = {
         {"DEBUG_SEVERITY_LOW", GL_DEBUG_SEVERITY_LOW},
         {"DEBUG_SEVERITY_MEDIUM", GL_DEBUG_SEVERITY_MEDIUM},
         {"DEBUG_SEVERITY_HIGH", GL_DEBUG_SEVERITY_HIGH},
-        {0}},
+        {0},
+    },
 };
 
 static EnumDef debugSourceEnum = {
@@ -105,7 +131,8 @@ static EnumDef debugSourceEnum = {
         {"DEBUG_SOURCE_THIRD_PARTY", GL_DEBUG_SOURCE_THIRD_PARTY},
         {"DEBUG_SOURCE_WINDOW_SYSTEM", GL_DEBUG_SOURCE_WINDOW_SYSTEM},
         {"DEBUG_SOURCE_OTHER", GL_DEBUG_SOURCE_OTHER},
-        {0}},
+        {0},
+    },
 };
 
 static EnumDef debugTypeEnum = {
@@ -120,7 +147,8 @@ static EnumDef debugTypeEnum = {
         {"DEBUG_TYPE_PUSH_GROUP", GL_DEBUG_TYPE_PUSH_GROUP},
         {"DEBUG_TYPE_ERROR", GL_DEBUG_TYPE_ERROR},
         {"DEBUG_TYPE_PERFORMANCE", GL_DEBUG_TYPE_PERFORMANCE},
-        {0}},
+        {0},
+    },
 };
 
 static EnumDef errorCodeEnum = {
@@ -134,7 +162,8 @@ static EnumDef errorCodeEnum = {
         {"OUT_OF_MEMORY", GL_OUT_OF_MEMORY},
         {"STACK_UNDERFLOW", GL_STACK_UNDERFLOW},
         {"STACK_OVERFLOW", GL_STACK_OVERFLOW},
-        {0}},
+        {0},
+    },
 };
 
 static ModuleInfo modInfo = {
@@ -146,9 +175,18 @@ static ModuleInfo modInfo = {
         .m_methods = (PyMethodDef[]){
             {"enable", (PyCFunction)py_debug_enable, METH_VARARGS | METH_KEYWORDS, NULL},
             {"disable", py_debug_disable, METH_NOARGS, NULL},
-            {"get_error", get_error, METH_NOARGS, NULL},
-            {0}}},
-    .enums = (EnumDef *[]){&debugSeverityEnum, &errorCodeEnum, &debugSourceEnum, &debugTypeEnum, NULL},
+            {"get_error", py_debug_get_error, METH_NOARGS, NULL},
+            {"insert_message", (PyCFunction)py_debug_insert_message, METH_VARARGS, NULL},
+            {0},
+        },
+    },
+    .enums = (EnumDef *[]){
+        &debugSeverityEnum,
+        &errorCodeEnum,
+        &debugSourceEnum,
+        &debugTypeEnum,
+        NULL,
+    },
 };
 
 PyMODINIT_FUNC PyInit_debug()

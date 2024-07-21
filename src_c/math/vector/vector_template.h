@@ -35,10 +35,41 @@
 
 static int vec_init(_SELF, PyObject *args, PyObject *_kwargs)
 {
-    if (!PyArg_ParseTuple(args, STRINGIFY(INIT_ARGS), INIT_OUT))
-        return -1;
+    size_t argsLen = PyTuple_GET_SIZE(args);
+    if (argsLen == 1)
+    {
+        PyObject *value = PyTuple_GET_ITEM(args, 0);
+        if (!PyFloat_Check(value))
+        {
+            PyErr_Format(PyExc_TypeError, "Expected arugment to be of type float, got: %s.", Py_TYPE(value)->tp_name);
+            return -1;
+        }
 
-    return 1;
+        float floatValue = (float)PyFloat_AS_DOUBLE(value);
+        for (size_t i = 0; i < VEC_LEN; i++)
+            self->data[i] = floatValue;
+    }
+    else if (argsLen == VEC_LEN)
+    {
+        for (size_t i = 0; i < argsLen; i++)
+        {
+            PyObject *value = PyTuple_GET_ITEM(args, i);
+            if (!PyFloat_Check(value))
+            {
+                PyErr_Format(PyExc_TypeError, "Expected arguments to be of type float but argument %d has type %s.", i + 1, Py_TYPE(value)->tp_name);
+                return -1;
+            }
+
+            self->data[i] = (float)PyFloat_AS_DOUBLE(value);
+        }
+    }
+    else
+    {
+        PyErr_Format(PyExc_TypeError, "Expected argument to be either signel float value or %d float values.", VEC_LEN);
+        return -1;
+    }
+
+    return 0;
 }
 
 static PyObject *vec_normalize(_SELF, PyObject *_args)
@@ -49,11 +80,8 @@ static PyObject *vec_normalize(_SELF, PyObject *_args)
 
 static PyObject *vec_normalized(_SELF, PyObject *_args)
 {
-    _GLM_TYPE n;
-    _GLM_INVOKE(normalize_to, self->data, n);
-
     _TYPE *result = PyObject_New(_TYPE, &_PY_TYPE);
-    memcpy(result->data, n, sizeof(_GLM_TYPE));
+    _GLM_INVOKE(normalize_to, self->data, result->data);
 
     return (PyObject *)result;
 }
@@ -65,7 +93,6 @@ static PyObject *vec_dot(_SELF, _TYPE *other)
     return PyFloat_FromDouble((double)result);
 }
 
-#if VEC_LEN != 4
 static PyObject *vec_cross(_SELF, _TYPE *other)
 {
     _VEC_CHECK(other);
@@ -74,17 +101,12 @@ static PyObject *vec_cross(_SELF, _TYPE *other)
     float result = _GLM_INVOKE(cross, self->data, other->data);
     return PyFloat_FromDouble((double)result);
 #else
-    _GLM_TYPE
-    n;
-    _GLM_INVOKE(cross, self->data, other->data, n);
-
     _TYPE *result = PyObject_New(_TYPE, &_PY_TYPE);
-    memcpy(result->data, n, sizeof(_GLM_TYPE));
+    _GLM_INVOKE(cross, self->data, other->data, result->data);
 
     return (PyObject *)result;
 #endif
 }
-#endif
 
 static PyObject *vec_distance(_SELF, _TYPE *other)
 {
@@ -100,11 +122,14 @@ static PyObject *vec_interpolate(_SELF, PyObject *args)
     if (!PyArg_ParseTuple(args, "O!f", &_PY_TYPE, &other, &factor))
         return NULL;
 
-    _GLM_TYPE n;
-    _GLM_INVOKE(lerp, self->data, other->data, factor, n);
+    if (factor < 0.0 || factor > 1.0)
+    {
+        PyErr_SetString(PyExc_ValueError, "Factor must be in range [0.0, 1.0].");
+        return NULL;
+    }
 
     _TYPE *result = PyObject_New(_TYPE, &_PY_TYPE);
-    memcpy(result->data, n, sizeof(_GLM_TYPE));
+    _GLM_INVOKE(lerp, self->data, other->data, factor, result->data);
 
     return (PyObject *)result;
 }
@@ -306,7 +331,7 @@ PyTypeObject _PY_TYPE = {
         {0},
     },
     .tp_as_sequence = &(PySequenceMethods){
-        .sq_length = (lenfunc)VEC_LEN,
+        .sq_length = (lenfunc)vec_len,
         .sq_item = (ssizeargfunc)vec_item,
         .sq_ass_item = (ssizeobjargproc)vec_assign_item,
     },
