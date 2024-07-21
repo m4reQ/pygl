@@ -4,6 +4,7 @@
 #error "Matrix length not defined (MAT_LEN)"
 #endif
 
+#include <string.h>
 #include <stdbool.h>
 #include "matrix.h"
 #include "../vector/vector.h"
@@ -18,6 +19,12 @@
 #define _GLM_INVOKE(func, ...) CAT(CAT(CAT(glm_mat, MAT_LEN), _), func)(__VA_ARGS__)
 #define _NEW(var) _TYPE *var = PyObject_New(_TYPE, &_PY_TYPE)
 #define _GLM_VEC_COPY(src, dst) CAT(CAT(glm_vec, MAT_LEN), _copy)(src, dst)
+#define _MAT_OP_CHECK_TYPE(obj)                                           \
+    do                                                                    \
+    {                                                                     \
+        if (!PyObject_IsInstance((PyObject *)obj, (PyObject *)&_PY_TYPE)) \
+            Py_RETURN_NOTIMPLEMENTED;                                     \
+    } while (0)
 
 static int init(_SELF, PyObject *args, PyObject *kwargs)
 {
@@ -43,7 +50,7 @@ static int init(_SELF, PyObject *args, PyObject *kwargs)
         else if (PyObject_CheckBuffer(arg))
         {
             Py_buffer buf;
-            if (!PyObject_GetBuffer(arg, &buf, PyBUF_C_CONTIGUOUS))
+            if (PyObject_GetBuffer(arg, &buf, PyBUF_C_CONTIGUOUS) == -1)
             {
                 raise_buffer_not_contiguous();
                 return -1;
@@ -209,7 +216,8 @@ static int row3_set(_SELF, PyObject *value, void *Py_UNUSED(closure))
 }
 
 #pragma region AS_NUMBER
-static PyObject *matmul(_SELF, PyObject *other)
+static PyObject *
+matmul(_SELF, PyObject *other)
 {
     if (PyObject_IsInstance(other, (PyObject *)&_PY_TYPE))
     {
@@ -231,8 +239,7 @@ static PyObject *matmul(_SELF, PyObject *other)
 
 static PyObject *imatmul(_SELF, PyObject *other)
 {
-    if (!PyObject_IsInstance(other, (PyObject *)&_PY_TYPE))
-        Py_RETURN_NOTIMPLEMENTED;
+    _MAT_OP_CHECK_TYPE(other);
 
     _GLM_TYPE res;
     _GLM_INVOKE(mul, self->data, ((_TYPE *)other)->data, res);
@@ -240,6 +247,61 @@ static PyObject *imatmul(_SELF, PyObject *other)
 
     return (PyObject *)self;
 }
+
+static PyObject *add(_SELF, Matrix4 *other)
+{
+    _MAT_OP_CHECK_TYPE(other);
+
+    float *data = self->data;
+    float *otherData = other->data;
+
+    _NEW(res);
+    for (size_t i = 0; i < MAT_LEN * MAT_LEN; i++)
+        ((float *)res->data)[i] = data[i] + otherData[i];
+
+    return (PyObject *)res;
+}
+
+static PyObject *iadd(_SELF, Matrix4 *other)
+{
+    _MAT_OP_CHECK_TYPE(other);
+
+    float *data = self->data;
+    float *otherData = other->data;
+
+    for (size_t i = 0; i < MAT_LEN * MAT_LEN; i++)
+        data[i] = data[i] + otherData[i];
+
+    return (PyObject *)self;
+}
+
+static PyObject *sub(_SELF, Matrix4 *other)
+{
+    _MAT_OP_CHECK_TYPE(other);
+
+    float *data = self->data;
+    float *otherData = other->data;
+
+    _NEW(res);
+    for (size_t i = 0; i < MAT_LEN * MAT_LEN; i++)
+        ((float *)res->data)[i] = data[i] - otherData[i];
+
+    return (PyObject *)res;
+}
+
+static PyObject *isub(_SELF, Matrix4 *other)
+{
+    _MAT_OP_CHECK_TYPE(other);
+
+    float *data = self->data;
+    float *otherData = other->data;
+
+    for (size_t i = 0; i < MAT_LEN * MAT_LEN; i++)
+        data[i] = data[i] - otherData[i];
+
+    return (PyObject *)self;
+}
+
 #pragma endregion
 
 #pragma region AS_MAPPING
@@ -309,6 +371,10 @@ PyTypeObject _PY_TYPE = {
     .tp_as_number = &(PyNumberMethods){
         .nb_matrix_multiply = (binaryfunc)matmul,
         .nb_inplace_matrix_multiply = (binaryfunc)imatmul,
+        .nb_add = (binaryfunc)add,
+        .nb_inplace_add = (binaryfunc)iadd,
+        .nb_subtract = (binaryfunc)sub,
+        .nb_inplace_subtract = (binaryfunc)isub,
     },
     .tp_as_mapping = &(PyMappingMethods){
         .mp_length = (lenfunc)len,

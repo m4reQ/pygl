@@ -32,6 +32,12 @@
             return ret;                                               \
         }                                                             \
     } while (0)
+#define _VEC_OP_CHECK_TYPE(obj)                                           \
+    do                                                                    \
+    {                                                                     \
+        if (!PyObject_IsInstance((PyObject *)obj, (PyObject *)&_PY_TYPE)) \
+            Py_RETURN_NOTIMPLEMENTED;                                     \
+    } while (0)
 
 static int vec_init(_SELF, PyObject *args, PyObject *_kwargs)
 {
@@ -177,8 +183,7 @@ static int vec_assign_item(_SELF, Py_ssize_t index, PyObject *value)
 
 static PyObject *vec_add(_SELF, PyObject *other)
 {
-    if (!PyObject_IsInstance(other, (PyObject *)&_PY_TYPE))
-        Py_RETURN_NOTIMPLEMENTED;
+    _VEC_OP_CHECK_TYPE(other);
 
     _TYPE *res = PyObject_New(_TYPE, &_PY_TYPE);
     _GLM_INVOKE(add, self->data, ((_TYPE *)other)->data, res->data);
@@ -188,8 +193,7 @@ static PyObject *vec_add(_SELF, PyObject *other)
 
 static PyObject *vec_sub(_SELF, PyObject *other)
 {
-    if (!PyObject_IsInstance(other, (PyObject *)&_PY_TYPE))
-        Py_RETURN_NOTIMPLEMENTED;
+    _VEC_OP_CHECK_TYPE(other);
 
     _TYPE *res = PyObject_New(_TYPE, &_PY_TYPE);
     _GLM_INVOKE(sub, self->data, ((_TYPE *)other)->data, res->data);
@@ -199,8 +203,7 @@ static PyObject *vec_sub(_SELF, PyObject *other)
 
 static PyObject *vec_iadd(_SELF, PyObject *other)
 {
-    if (!PyObject_IsInstance(other, (PyObject *)&_PY_TYPE))
-        Py_RETURN_NOTIMPLEMENTED;
+    _VEC_OP_CHECK_TYPE(other);
 
     _GLM_INVOKE(add, self->data, ((_TYPE *)other)->data, self->data);
 
@@ -209,10 +212,28 @@ static PyObject *vec_iadd(_SELF, PyObject *other)
 
 static PyObject *vec_isub(_SELF, PyObject *other)
 {
-    if (!PyObject_IsInstance(other, (PyObject *)&_PY_TYPE))
-        Py_RETURN_NOTIMPLEMENTED;
+    _VEC_OP_CHECK_TYPE(other);
 
     _GLM_INVOKE(sub, self->data, ((_TYPE *)other)->data, self->data);
+
+    return (PyObject *)self;
+}
+
+static PyObject *vec_mult(_SELF, PyObject *other)
+{
+    _VEC_OP_CHECK_TYPE(other);
+
+    _NEW(res);
+    _GLM_INVOKE(mul, self->data, ((_TYPE *)other)->data, res->data);
+
+    return (PyObject *)res;
+}
+
+static PyObject *vec_imult(_SELF, PyObject *other)
+{
+    _VEC_OP_CHECK_TYPE(other);
+
+    _GLM_INVOKE(mul, self->data, ((_TYPE *)other)->data, self->data);
 
     return (PyObject *)self;
 }
@@ -252,7 +273,7 @@ static PyObject *r_get(_SELF, void *Py_UNUSED(closure))
     return get_data_at(self, 0);
 }
 
-static PyObject *r_set(_SELF, PyObject *value, void *Py_UNUSED(closure))
+static int r_set(_SELF, PyObject *value, void *Py_UNUSED(closure))
 {
     return set_data_at(self, 0, value) ? 0 : -1;
 }
@@ -262,7 +283,7 @@ static PyObject *g_get(_SELF, void *Py_UNUSED(closure))
     return get_data_at(self, 1);
 }
 
-static PyObject *g_set(_SELF, PyObject *value, void *Py_UNUSED(closure))
+static int g_set(_SELF, PyObject *value, void *Py_UNUSED(closure))
 {
     return set_data_at(self, 1, value) ? 0 : -1;
 }
@@ -272,7 +293,7 @@ static PyObject *b_get(_SELF, void *Py_UNUSED(closure))
     return get_data_at(self, 2);
 }
 
-static PyObject *b_set(_SELF, PyObject *value, void *Py_UNUSED(closure))
+static int b_set(_SELF, PyObject *value, void *Py_UNUSED(closure))
 {
     return set_data_at(self, 2, value) ? 0 : -1;
 }
@@ -282,9 +303,30 @@ static PyObject *a_get(_SELF, void *Py_UNUSED(closure))
     return get_data_at(self, 3);
 }
 
-static PyObject *a_set(_SELF, PyObject *value, void *Py_UNUSED(closure))
+static int a_set(_SELF, PyObject *value, void *Py_UNUSED(closure))
 {
     return set_data_at(self, 3, value) ? 0 : -1;
+}
+
+static PyObject *vec_richcompare(_SELF, PyObject *other, int op)
+{
+    if (!PyObject_IsInstance(other, (PyObject *)&_PY_TYPE))
+        Py_RETURN_NOTIMPLEMENTED;
+
+    bool result = false;
+    switch (op)
+    {
+    case Py_EQ:
+        result = _GLM_INVOKE(eqv, self->data, ((Vector2 *)other)->data);
+        break;
+    case Py_NE:
+        result = !_GLM_INVOKE(eqv, self->data, ((Vector2 *)other)->data);
+        break;
+    default:
+        Py_RETURN_NOTIMPLEMENTED;
+    }
+
+    return result ? Py_NewRef(Py_True) : Py_NewRef(Py_False);
 }
 
 PyTypeObject _PY_TYPE = {
@@ -295,6 +337,7 @@ PyTypeObject _PY_TYPE = {
     .tp_basicsize = sizeof(_TYPE),
     .tp_init = (initproc)vec_init,
     .tp_repr = (reprfunc)vec_repr,
+    .tp_richcompare = (richcmpfunc)vec_richcompare,
     .tp_getset = (PyGetSetDef[]){
         {"r", (getter)r_get, (setter)r_set, NULL, NULL},
         {"g", (getter)g_get, (setter)g_set, NULL, NULL},
@@ -340,5 +383,7 @@ PyTypeObject _PY_TYPE = {
         .nb_subtract = (binaryfunc)vec_sub,
         .nb_inplace_add = (binaryfunc)vec_iadd,
         .nb_inplace_subtract = (binaryfunc)vec_isub,
+        .nb_multiply = (binaryfunc)vec_mult,
+        .nb_inplace_multiply = (binaryfunc)vec_imult,
     },
 };

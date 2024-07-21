@@ -228,3 +228,20 @@ def test_vector_interpolate_failure_factor_too_high() -> None:
 
     with pytest.raises(ValueError):
         a.interpolate(b, 1.5)
+
+def test_vector_mul_success() -> None:
+    a = Vector4(2.0)
+    b = Vector4(4.0)
+    c = a * b
+
+    assert c.x == 8.0
+    assert c.y == 8.0
+    assert c.z == 8.0
+    assert c.w == 8.0
+
+def test_vector_mul_failure_invalid_operand() -> None:
+    a = Vector4(1.0)
+    b = 'str'
+
+    with pytest.raises(TypeError):
+        a * b
