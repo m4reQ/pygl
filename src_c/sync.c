@@ -9,7 +9,7 @@
 typedef struct
 {
     PyObject_HEAD
-    GLsync sync;
+        GLsync sync;
 } PySync;
 
 static void wait_indefinitely(GLsync sync)
@@ -21,9 +21,9 @@ static void wait_indefinitely(GLsync sync)
     } while (!SYNC_SIGNALED(waitState));
 }
 
-static PyObject* wait(PySync* self, PyObject* args, PyObject* kwargs)
+static PyObject *wait(PySync *self, PyObject *args, PyObject *kwargs)
 {
-    static char* kwNames[] = {"timeout", NULL};
+    static char *kwNames[] = {"timeout", NULL};
 
     if (self->sync == NULL)
         Py_RETURN_NONE;
@@ -39,12 +39,11 @@ static PyObject* wait(PySync* self, PyObject* args, PyObject* kwargs)
     else
     {
         GLenum waitState = glClientWaitSync(self->sync, GL_SYNC_FLUSH_COMMANDS_BIT, timeout);
-        ThrowIf(
+        THROW_IF(
             !SYNC_SIGNALED(waitState),
             PyExc_RuntimeError,
             "Sync timeout expired.",
             NULL);
-
     }
 
     glDeleteSync(self->sync);
@@ -53,13 +52,13 @@ static PyObject* wait(PySync* self, PyObject* args, PyObject* kwargs)
     Py_RETURN_NONE;
 }
 
-static PyObject* set(PySync* self, PyObject* Py_UNUSED(args))
+static PyObject *set(PySync *self, PyObject *Py_UNUSED(args))
 {
     self->sync = glFenceSync(GL_SYNC_GPU_COMMANDS_COMPLETE, 0);
     Py_RETURN_NONE;
 }
 
-static PyObject* delete(PySync* self, PyObject* Py_UNUSED(args))
+static PyObject *delete(PySync *self, PyObject *Py_UNUSED(args))
 {
     if (self->sync)
         glDeleteSync(self->sync);
@@ -69,15 +68,15 @@ static PyObject* delete(PySync* self, PyObject* Py_UNUSED(args))
     Py_RETURN_NONE;
 }
 
-static void dealloc(PySync* self)
+static void dealloc(PySync *self)
 {
-    delete(self, NULL);
+    delete (self, NULL);
     Py_TYPE(self)->tp_free(self);
 }
 
 static PyTypeObject pySyncType = {
     PyVarObject_HEAD_INIT(NULL, 0)
-    .tp_new = PyType_GenericNew,
+        .tp_new = PyType_GenericNew,
     .tp_flags = Py_TPFLAGS_DEFAULT,
     .tp_basicsize = sizeof(PySync),
     .tp_name = "pygl.sync.Sync",
@@ -85,7 +84,7 @@ static PyTypeObject pySyncType = {
     .tp_methods = (PyMethodDef[]){
         {"set", (PyCFunction)set, METH_NOARGS, NULL},
         {"wait", (PyCFunction)wait, METH_VARARGS | METH_KEYWORDS, NULL},
-        {"delete", (PyCFunction)delete, METH_NOARGS, NULL},
+        {"delete", (PyCFunction) delete, METH_NOARGS, NULL},
         {0}},
 };
 
@@ -97,7 +96,7 @@ static PyModuleDef moduleDef = {
 
 PyMODINIT_FUNC PyInit_sync()
 {
-    PyObject* mod = PyModule_Create(&moduleDef);
+    PyObject *mod = PyModule_Create(&moduleDef);
     if (!mod)
         return NULL;
 

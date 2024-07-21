@@ -1,5 +1,5 @@
 #include <glad/gl.h>
-#include "enum.h"
+#include "module.h"
 
 static PyObject* draw_arrays(PyObject* Py_UNUSED(self), PyObject* args)
 {
@@ -173,69 +173,70 @@ static PyObject* clear(PyObject* Py_UNUSED(self), PyObject* mask)
     Py_RETURN_NONE;
 }
 
-static PyModuleDef moduleDef = {
-    PyModuleDef_HEAD_INIT,
-    .m_name = "pygl.rendering",
-    .m_size = -1,
-    .m_methods = (PyMethodDef[]){
-        {"draw_arrays", draw_arrays, METH_VARARGS, NULL},
-        {"draw_arrays_instanced", draw_arrays_instanced, METH_VARARGS, NULL},
-        {"draw_arrays_instanced_base_instance", draw_arrays_instanced_base_instance, METH_VARARGS, NULL},
-        {"draw_elements", draw_elements, METH_VARARGS, NULL},
-        {"draw_elements_instanced", draw_elements_instanced, METH_VARARGS, NULL},
-        {"draw_elements_instanced_base_instance", draw_elements_instanced_base_instance, METH_VARARGS, NULL},
-        {"draw_elements_instanced_base_vertex", draw_elements_instanced_base_vertex, METH_VARARGS, NULL},
-        {"draw_elements_instanced_base_vertex_base_instance", draw_elements_instanced_base_vertex_base_instance, METH_VARARGS, NULL},
-        {"draw_arrays_indirect", draw_arrays_indirect, METH_O, NULL},
-        {"draw_elements_indirect", draw_elements_indirect, METH_VARARGS, NULL},
-        {"multi_draw_arrays_indirect", multi_draw_arrays_indirect, METH_VARARGS, NULL},
-        {"multi_draw_elements_indirect", multi_draw_elements_indirect, METH_VARARGS, NULL},
-        {"clear", clear, METH_O, NULL},
+static EnumDef drawModeEnum = {
+    .enumName = "DrawMode",
+    .values = (EnumValue[]) {
+        {"POINTS", GL_POINTS},
+        {"LINE_STRIP", GL_LINE_STRIP},
+        {"LINE_LOOP", GL_LINE_LOOP},
+        {"LINES", GL_LINES},
+        {"LINE_STRIP_ADJACENCY", GL_LINE_STRIP_ADJACENCY},
+        {"LINES_ADJACENCY", GL_LINES_ADJACENCY},
+        {"TRIANGLE_STRIP", GL_TRIANGLE_STRIP},
+        {"TRIANGLE_FAN", GL_TRIANGLE_FAN},
+        {"TRIANGLES", GL_TRIANGLES},
+        {"TRIANGLE_STRIP_ADJACENCY", GL_TRIANGLE_STRIP_ADJACENCY},
+        {"TRIANGLES_ADJACENCY", GL_TRIANGLES_ADJACENCY},
+        {"PATCHES", GL_PATCHES},
         {0}},
 };
 
-static EnumValue drawModeValues[] = {
-    {"POINTS", GL_POINTS},
-    {"LINE_STRIP", GL_LINE_STRIP},
-    {"LINE_LOOP", GL_LINE_LOOP},
-    {"LINES", GL_LINES},
-    {"LINE_STRIP_ADJACENCY", GL_LINE_STRIP_ADJACENCY},
-    {"LINES_ADJACENCY", GL_LINES_ADJACENCY},
-    {"TRIANGLE_STRIP", GL_TRIANGLE_STRIP},
-    {"TRIANGLE_FAN", GL_TRIANGLE_FAN},
-    {"TRIANGLES", GL_TRIANGLES},
-    {"TRIANGLE_STRIP_ADJACENCY", GL_TRIANGLE_STRIP_ADJACENCY},
-    {"TRIANGLES_ADJACENCY", GL_TRIANGLES_ADJACENCY},
-    {"PATCHES", GL_PATCHES},
-    {0},
+static EnumDef elementsTypeEnum = {
+    .enumName = "ElementsType",
+    .values = (EnumValue[]) {
+        {"UNSIGNED_BYTE", GL_UNSIGNED_BYTE},
+        {"UNSIGNED_SHORT", GL_UNSIGNED_SHORT},
+        {"UNSIGNED_INT", GL_UNSIGNED_INT},
+        {0}},
 };
-static EnumValue elementsTypeValues[] = {
-    {"UNSIGNED_BYTE", GL_UNSIGNED_BYTE},
-    {"UNSIGNED_SHORT", GL_UNSIGNED_SHORT},
-    {"UNSIGNED_INT", GL_UNSIGNED_INT},
-    {0},
+
+static EnumDef clearMaskEnum = {
+    .enumName = "ClearMask",
+    .values = (EnumValue[]) {
+        {"COLOR_BUFFER_BIT", GL_COLOR_BUFFER_BIT},
+        {"DEPTH_BUFFER_BIT", GL_DEPTH_BUFFER_BIT},
+        {"STENCIL_BUFFER_BIT", GL_STENCIL_BUFFER_BIT},
+        {0}},
 };
-static EnumValue clearMaskValues[] = {
-    {"COLOR_BUFFER_BIT", GL_COLOR_BUFFER_BIT},
-    {"DEPTH_BUFFER_BIT", GL_DEPTH_BUFFER_BIT},
-    {"STENCIL_BUFFER_BIT", GL_STENCIL_BUFFER_BIT},
-    {0},
+
+static ModuleInfo modInfo = {
+    .def = {
+        PyModuleDef_HEAD_INIT,
+        .m_name = "pygl.rendering",
+        .m_size = -1,
+        .m_methods = (PyMethodDef[]){
+            {"draw_arrays", draw_arrays, METH_VARARGS, NULL},
+            {"draw_arrays_instanced", draw_arrays_instanced, METH_VARARGS, NULL},
+            {"draw_arrays_instanced_base_instance", draw_arrays_instanced_base_instance, METH_VARARGS, NULL},
+            {"draw_elements", draw_elements, METH_VARARGS, NULL},
+            {"draw_elements_instanced", draw_elements_instanced, METH_VARARGS, NULL},
+            {"draw_elements_instanced_base_instance", draw_elements_instanced_base_instance, METH_VARARGS, NULL},
+            {"draw_elements_instanced_base_vertex", draw_elements_instanced_base_vertex, METH_VARARGS, NULL},
+            {"draw_elements_instanced_base_vertex_base_instance", draw_elements_instanced_base_vertex_base_instance, METH_VARARGS, NULL},
+            {"draw_arrays_indirect", draw_arrays_indirect, METH_O, NULL},
+            {"draw_elements_indirect", draw_elements_indirect, METH_VARARGS, NULL},
+            {"multi_draw_arrays_indirect", multi_draw_arrays_indirect, METH_VARARGS, NULL},
+            {"multi_draw_elements_indirect", multi_draw_elements_indirect, METH_VARARGS, NULL},
+            {"clear", clear, METH_O, NULL},
+            {0}}},
+    .enums = (EnumDef*[]) {
+        &drawModeEnum,
+        &clearMaskEnum,
+        &elementsTypeEnum,
+        NULL},
 };
 
 PyMODINIT_FUNC PyInit_rendering()
 {
-    PyObject* mod = PyModule_Create(&moduleDef);
-    if (!mod)
-        return NULL;
-
-    if (!enum_add(mod, "DrawMode", drawModeValues))
-        return NULL;
-
-    if (!enum_add(mod, "ElementsType", elementsTypeValues))
-        return NULL;
-
-    if (!enum_add(mod, "ClearMask", clearMaskValues))
-        return NULL;
-
-    return mod;
+    return module_create_from_info(&modInfo);
 }

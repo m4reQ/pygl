@@ -1,29 +1,11 @@
 #include "vertexDescriptor.h"
 #include "vertexInput.h"
 #include "vertexArray.h"
-#include "../enum.h"
+#include "../module.h"
 
-static PyModuleDef moduleDef = {
-    PyModuleDef_HEAD_INIT,
-    .m_name = "pygl.vertex_array"
-};
-
-PyMODINIT_FUNC PyInit_vertex_array()
-{
-    PyObject* mod = PyModule_Create(&moduleDef);
-    if (!mod)
-        return mod;
-
-    if (PyModule_AddType(mod, &pyVertexInputType))
-        return NULL;
-
-    if (PyModule_AddType(mod, &pyVertexDescriptorType))
-        return NULL;
-
-    if (PyModule_AddType(mod, &pyVertexArrayType))
-        return NULL;
-
-    EnumValue values[] = {
+static EnumDef attribTypeEnum = {
+    .enumName = "AttribType",
+    .values = (EnumValue[]) {
         {"FLOAT", GL_FLOAT},
         {"HALF_FLOAT", GL_HALF_FLOAT},
         {"DOUBLE", GL_DOUBLE},
@@ -33,10 +15,25 @@ PyMODINIT_FUNC PyInit_vertex_array()
         {"UNSIGNED_SHORT", GL_UNSIGNED_SHORT},
         {"INT", GL_INT},
         {"UNSIGNED_INT", GL_UNSIGNED_INT},
-        {0},
-    };
-    if (!enum_add(mod, "AttribType", values))
-        return NULL;
+        {0}},
+};
 
-    return mod;
+static ModuleInfo modInfo = {
+    .def = {
+        PyModuleDef_HEAD_INIT,
+        .m_name = "pygl.vertex_array",
+        .m_size = -1},
+    .enums = (EnumDef*[]) {
+        &attribTypeEnum,
+        NULL},
+    .types = (PyTypeObject*[]) {
+        &pyVertexInputType,
+        &pyVertexDescriptorType,
+        &pyVertexArrayType,
+        NULL},
+};
+
+PyMODINIT_FUNC PyInit_vertex_array()
+{
+    return module_create_from_info(&modInfo);
 }

@@ -5,28 +5,29 @@
 #include "../utility.h"
 
 #define READ_FILE_CHUNK_SIZE 1024 * 64 // 64 KiB
-#define SET_UNIFORM_MAT_IMPL(type) \
-    switch (len) { \
-    case 2: \
-        glProgramUniformMatrix2 ##type ##v(id, loc, 1, (GLboolean)transpose, buf->buf); \
-        break; \
-    case 3: \
-        glProgramUniformMatrix3 ##type ##v(id, loc, 1, (GLboolean)transpose, buf->buf); \
-        break; \
-    case 4: \
-        glProgramUniformMatrix4 ##type ##v(id, loc, 1, (GLboolean)transpose, buf->buf); \
-        break; \
-    default: \
-        PyErr_SetString(PyExc_ValueError, "Invalid matrix length provided."); \
-        return false; \
-    } \
+#define SET_UNIFORM_MAT_IMPL(type)                                                    \
+    switch (len)                                                                      \
+    {                                                                                 \
+    case 2:                                                                           \
+        glProgramUniformMatrix2##type##v(id, loc, 1, (GLboolean)transpose, buf->buf); \
+        break;                                                                        \
+    case 3:                                                                           \
+        glProgramUniformMatrix3##type##v(id, loc, 1, (GLboolean)transpose, buf->buf); \
+        break;                                                                        \
+    case 4:                                                                           \
+        glProgramUniformMatrix4##type##v(id, loc, 1, (GLboolean)transpose, buf->buf); \
+        break;                                                                        \
+    default:                                                                          \
+        PyErr_SetString(PyExc_ValueError, "Invalid matrix length provided.");         \
+        return false;                                                                 \
+    }                                                                                 \
     return true;
 
 typedef struct
 {
     PyObject_HEAD
-    GLuint id;
-    PyObject* resources;
+        GLuint id;
+    PyObject *resources;
 } PyShader;
 
 typedef struct
@@ -35,9 +36,9 @@ typedef struct
     GLint nameLength;
 } ResourceProto;
 
-static GLint get_uniform_location(PyShader* shader, PyObject* name)
+static GLint get_uniform_location(PyShader *shader, PyObject *name)
 {
-    PyObject* locationObj = PyDict_GetItem(shader->resources, name);
+    PyObject *locationObj = PyDict_GetItem(shader->resources, name);
     if (!locationObj)
     {
         PyErr_Format(PyExc_ValueError, "Couldn't find uniform named %U.", name);
@@ -58,7 +59,7 @@ static bool check_compile_success(GLuint stage)
     glGetShaderiv(stage, GL_INFO_LOG_LENGTH, &logLength);
 
     const size_t bufSize = sizeof(char) * logLength;
-    char* infoLog = PyMem_Malloc(bufSize);
+    char *infoLog = PyMem_Malloc(bufSize);
     glGetShaderInfoLog(stage, bufSize, NULL, infoLog);
 
     PyErr_Format(PyExc_RuntimeError, "Shader stage compilation failure:\n%s", infoLog);
@@ -77,7 +78,7 @@ static bool check_link_success(GLuint shader)
     glGetProgramiv(shader, GL_INFO_LOG_LENGTH, &logLength);
 
     const size_t bufferSize = sizeof(char) * logLength;
-    char* infoLog = PyMem_Malloc(bufferSize);
+    char *infoLog = PyMem_Malloc(bufferSize);
     glGetProgramInfoLog(shader, bufferSize, NULL, infoLog);
 
     PyErr_Format(PyExc_RuntimeError, "Shader link failure:\n%s", infoLog);
@@ -85,9 +86,9 @@ static bool check_link_success(GLuint shader)
     return -1;
 }
 
-static bool read_whole_file(FILE* file, char** outData, size_t* outSize)
+static bool read_whole_file(FILE *file, char **outData, size_t *outSize)
 {
-    char* buffer = NULL;
+    char *buffer = NULL;
     size_t read = 0;
     size_t bufSize = 0;
 
@@ -116,36 +117,39 @@ static bool read_whole_file(FILE* file, char** outData, size_t* outSize)
     return true;
 }
 
-static GLuint create_stage(PyShaderStage* stage)
+static const char *get_shader_stage_source(PyShaderStage *stage, size_t *sourceLength)
 {
-    char* source;
-    size_t sourceLen;
     if (stage->fromSource)
-    {
-        source = PyUnicode_AsUTF8AndSize(stage->pyFilepath, &sourceLen);
-    }
-    else
-    {
-        FILE* sourceFile = NULL;
-        ThrowIf(
-            fopen_s(&sourceFile, PyUnicode_AsUTF8(stage->pyFilepath), "r"),
-            PyExc_RuntimeError,
-            "Couldn't open shader stage source file.",
-            -1);
+        return PyUnicode_AsUTF8AndSize(stage->pyFilepath, sourceLength);
 
-        ThrowIf(
-            !read_whole_file(sourceFile, &source, &sourceLen),
-            PyExc_RuntimeError,
-            "Couldn't read shader stage source file.",
-            -1);
-    }
+    FILE *sourceFile = NULL;
+    THROW_IF(
+        fopen_s(&sourceFile, PyUnicode_AsUTF8(stage->pyFilepath), "r"),
+        PyExc_RuntimeError,
+        "Couldn't open shader stage source file.",
+        NULL);
+
+    char *source = NULL;
+    THROW_IF(
+        !read_whole_file(sourceFile, &source, sourceLength),
+        PyExc_RuntimeError,
+        "Couldn't read shader stage source file.",
+        NULL);
+
+    return source;
+}
+
+static GLuint create_stage(PyShaderStage *stage)
+{
+    size_t sourceLength = 0;
+    const char *source = get_shader_stage_source(stage, &sourceLength);
 
     GLuint id = glCreateShader(stage->type);
-    glShaderSource(id, 1, &source, &sourceLen);
+    glShaderSource(id, 1, &source, (GLint *)&sourceLength);
     glCompileShader(id);
 
     if (!stage->fromSource)
-        PyMem_Free(source);
+        PyMem_Free((char *)source);
 
     if (!check_compile_success(id))
         return -1;
@@ -153,29 +157,37 @@ static GLuint create_stage(PyShaderStage* stage)
     return id;
 }
 
-static void retrieve_interface(GLuint shader, GLenum interface, PyObject* storage)
+static void retrieve_interface(GLuint shader, GLenum interface, PyObject *storage)
 {
     GLint resourceCount = 0;
     glGetProgramInterfaceiv(shader, interface, GL_ACTIVE_RESOURCES, &resourceCount);
 
     for (GLint i = 0; i < resourceCount; i++)
     {
-        static const GLenum properties[] = { GL_LOCATION, GL_NAME_LENGTH };
+        static const GLenum properties[] = {GL_LOCATION, GL_NAME_LENGTH};
 
         ResourceProto proto;
-        glGetProgramResourceiv(shader, interface, i, _countof(properties), properties, sizeof(ResourceProto), NULL, &proto);
+        glGetProgramResourceiv(
+            shader,
+            interface,
+            i,
+            _countof(properties),
+            properties,
+            sizeof(ResourceProto),
+            NULL,
+            &proto.location);
 
         // skip members of buffer uniform blocks
         if (proto.location == -1)
             continue;
 
         const size_t bufSize = sizeof(char) * (proto.nameLength + 1);
-        char* name = PyMem_Malloc(bufSize);
+        char *name = PyMem_Malloc(bufSize);
         glGetProgramResourceName(shader, interface, i, bufSize, NULL, name);
         name[bufSize - 1] = '\0';
 
         // normalize array names (array[0] -> array)
-        char* bracket = strchr(name, '[');
+        char *bracket = strchr(name, '[');
         if (bracket)
             *bracket = '\0';
 
@@ -183,9 +195,9 @@ static void retrieve_interface(GLuint shader, GLenum interface, PyObject* storag
     }
 }
 
-static int py_shader_init(PyShader* self, PyObject* args, PyObject* Py_UNUSED(kwargs))
+static int py_shader_init(PyShader *self, PyObject *args, PyObject *Py_UNUSED(kwargs))
 {
-    PyObject* stages;
+    PyObject *stages;
     if (!PyArg_ParseTuple(args, "O!", &PyList_Type, &stages))
         return -1;
 
@@ -193,13 +205,13 @@ static int py_shader_init(PyShader* self, PyObject* args, PyObject* Py_UNUSED(kw
     self->resources = PyDict_New();
 
     Py_ssize_t nStages = PyList_GET_SIZE(stages);
-    GLuint* attachedStages = PyMem_Malloc(sizeof(GLuint) * nStages);
+    GLuint *attachedStages = PyMem_Malloc(sizeof(GLuint) * nStages);
 
     for (Py_ssize_t i = 0; i < nStages; i++)
     {
-        PyShaderStage* _stage = (PyShaderStage*)PyList_GET_ITEM(stages, i);
-        ThrowIf(
-            !PyObject_IsInstance(_stage, &pyShaderStageType),
+        PyShaderStage *_stage = (PyShaderStage *)PyList_GET_ITEM(stages, i);
+        THROW_IF(
+            !PyObject_IsInstance((PyObject *)_stage, (PyObject *)&pyShaderStageType),
             PyExc_TypeError,
             "Second argument must be a list of pygl.shaders.ShaderStage objects",
             -1);
@@ -232,7 +244,7 @@ static int py_shader_init(PyShader* self, PyObject* args, PyObject* Py_UNUSED(kw
     return 0;
 }
 
-static PyObject* py_shader_delete(PyShader* self, PyObject* Py_UNUSED(args))
+static PyObject *py_shader_delete(PyShader *self, PyObject *Py_UNUSED(args))
 {
     glDeleteProgram(self->id);
     self->id = 0;
@@ -240,35 +252,35 @@ static PyObject* py_shader_delete(PyShader* self, PyObject* Py_UNUSED(args))
     Py_RETURN_NONE;
 }
 
-static void py_shader_dealloc(PyShader* self)
+static void py_shader_dealloc(PyShader *self)
 {
     py_shader_delete(self, NULL);
     Py_CLEAR(self->resources);
     Py_TYPE(self)->tp_free(self);
 }
 
-static PyObject* py_shader_use(PyShader* self, PyObject* Py_UNUSED(args))
+static PyObject *py_shader_use(PyShader *self, PyObject *Py_UNUSED(args))
 {
     glUseProgram(self->id);
     Py_RETURN_NONE;
 }
 
-static PyObject* py_shader_get_resource_location(PyShader* self, PyObject* name)
+static PyObject *py_shader_get_resource_location(PyShader *self, PyObject *name)
 {
-    ThrowIf(
+    THROW_IF(
         !PyUnicode_Check(name),
         PyExc_TypeError,
         "Name has to be of type str.",
         NULL);
 
-    PyObject* location = PyDict_GetItem(self->resources, name);
+    PyObject *location = PyDict_GetItem(self->resources, name);
     if (!location)
         PyErr_Format(PyExc_RuntimeError, "Couldn't find shader resource with name: %U.", name);
 
     return location;
 }
 
-static PyObject* py_shader_validate(PyShader* self, PyObject* Py_UNUSED(args))
+static PyObject *py_shader_validate(PyShader *self, PyObject *Py_UNUSED(args))
 {
     glValidateProgram(self->id);
 
@@ -279,7 +291,7 @@ static PyObject* py_shader_validate(PyShader* self, PyObject* Py_UNUSED(args))
         GLint logLength = 0;
         glGetProgramiv(self->id, GL_INFO_LOG_LENGTH, &logLength);
 
-        char* buffer = PyMem_Malloc(sizeof(char) * logLength);
+        char *buffer = PyMem_Malloc(sizeof(char) * logLength);
         glGetProgramInfoLog(self->id, sizeof(char) * logLength, NULL, buffer);
 
         PyErr_Format(PyExc_RuntimeError, "Shader %d validation error:\n%s.", self->id, buffer);
@@ -291,9 +303,9 @@ static PyObject* py_shader_validate(PyShader* self, PyObject* Py_UNUSED(args))
     Py_RETURN_NONE;
 }
 
-static PyObject* py_shader_get_uniform_block_location(PyShader* self, PyObject* name)
+static PyObject *py_shader_get_uniform_block_location(PyShader *self, PyObject *name)
 {
-    ThrowIf(
+    THROW_IF(
         !PyUnicode_Check(name),
         PyExc_TypeError,
         "name has to be of type str.",
@@ -303,9 +315,9 @@ static PyObject* py_shader_get_uniform_block_location(PyShader* self, PyObject* 
     return PyLong_FromUnsignedLong(index);
 }
 
-static PyObject* py_shader_set_uniform_block_binding(PyShader* self, PyObject* args)
+static PyObject *py_shader_set_uniform_block_binding(PyShader *self, PyObject *args)
 {
-    char* name = NULL;
+    char *name = NULL;
     GLuint binding = 0;
     if (!PyArg_ParseTuple(args, "sI", &name, &binding))
         return NULL;
@@ -314,10 +326,10 @@ static PyObject* py_shader_set_uniform_block_binding(PyShader* self, PyObject* a
     Py_RETURN_NONE;
 }
 
-static PyObject* py_shader_set_uniform(PyShader* self, PyObject* args)
+static PyObject *py_shader_set_uniform(PyShader *self, PyObject *args)
 {
-    PyObject* name = NULL;
-    PyObject* value = NULL;
+    PyObject *name = NULL;
+    PyObject *value = NULL;
     if (!PyArg_ParseTuple(args, "UO", &name, &value))
         return NULL;
 
@@ -347,12 +359,12 @@ static PyObject* py_shader_set_uniform(PyShader* self, PyObject* args)
     Py_RETURN_NONE;
 }
 
-static PyObject* py_shader_set_uniform_array(PyShader* self, PyObject* args, PyObject* kwargs)
+static PyObject *py_shader_set_uniform_array(PyShader *self, PyObject *args, PyObject *kwargs)
 {
-    static char* kwNames[] = {"name", "value", "type", NULL};
-    PyObject* result = NULL;
+    static char *kwNames[] = {"name", "value", "type", NULL};
+    PyObject *result = NULL;
 
-    PyObject* name = NULL;
+    PyObject *name = NULL;
     Py_buffer dataBuffer = {0};
     GLenum type = GL_FLOAT;
 
@@ -371,16 +383,16 @@ static PyObject* py_shader_set_uniform_array(PyShader* self, PyObject* args, PyO
     switch (type)
     {
     case GL_FLOAT:
-        glProgramUniform1fv(self->id, uniformLocation, count, (const GLfloat*)dataBuffer.buf);
+        glProgramUniform1fv(self->id, uniformLocation, count, (const GLfloat *)dataBuffer.buf);
         break;
     case GL_DOUBLE:
-        glProgramUniform1dv(self->id, uniformLocation, count, (const GLdouble*)dataBuffer.buf);
+        glProgramUniform1dv(self->id, uniformLocation, count, (const GLdouble *)dataBuffer.buf);
         break;
     case GL_INT:
-        glProgramUniform1iv(self->id, uniformLocation, count, (const GLint*)dataBuffer.buf);
+        glProgramUniform1iv(self->id, uniformLocation, count, (const GLint *)dataBuffer.buf);
         break;
     case GL_UNSIGNED_INT:
-        glProgramUniform1uiv(self->id, uniformLocation, count, (const GLuint*)dataBuffer.buf);
+        glProgramUniform1uiv(self->id, uniformLocation, count, (const GLuint *)dataBuffer.buf);
         break;
     default:
         PyErr_SetString(PyExc_ValueError, "Invalid value type provided.");
@@ -395,13 +407,13 @@ end:
     return result;
 }
 
-static PyObject* set_uniform_vec2(PyShader* self, PyObject* args, PyObject* kwargs)
+static PyObject *set_uniform_vec2(PyShader *self, PyObject *args, PyObject *kwargs)
 {
-    static char* kwNames[] = {"name", "x", "y", "type", NULL};
+    static char *kwNames[] = {"name", "x", "y", "type", NULL};
 
-    PyObject* name = NULL;
-    PyObject* x = NULL;
-    PyObject* y = NULL;
+    PyObject *name = NULL;
+    PyObject *x = NULL;
+    PyObject *y = NULL;
     GLenum type = GL_FLOAT;
     if (!PyArg_ParseTupleAndKeywords(args, kwargs, "UOO|I", kwNames, &name, &x, &y, &type))
         return NULL;
@@ -410,21 +422,22 @@ static PyObject* set_uniform_vec2(PyShader* self, PyObject* args, PyObject* kwar
     if (loc == -1)
         return NULL;
 
-    switch (type) {
+    switch (type)
+    {
     case GL_FLOAT:
-        ThrowIf(!(PyFloat_Check(x) && PyFloat_Check(y)), PyExc_TypeError, "all arguments have to be of type float.", NULL);
+        THROW_IF(!(PyFloat_Check(x) && PyFloat_Check(y)), PyExc_TypeError, "all arguments have to be of type float.", NULL);
         glProgramUniform2f(self->id, loc, PyFloat_AS_DOUBLE(x), PyFloat_AS_DOUBLE(y));
         break;
     case GL_DOUBLE:
-        ThrowIf(!(PyFloat_Check(x) && PyFloat_Check(y)), PyExc_TypeError, "all arguments have to be of type float.", NULL);
+        THROW_IF(!(PyFloat_Check(x) && PyFloat_Check(y)), PyExc_TypeError, "all arguments have to be of type float.", NULL);
         glProgramUniform2d(self->id, loc, PyFloat_AS_DOUBLE(x), PyFloat_AS_DOUBLE(y));
         break;
     case GL_INT:
-        ThrowIf(!(PyLong_Check(x) && PyLong_Check(y)), PyExc_TypeError, "all arguments have to be of type int.", NULL);
+        THROW_IF(!(PyLong_Check(x) && PyLong_Check(y)), PyExc_TypeError, "all arguments have to be of type int.", NULL);
         glProgramUniform2i(self->id, loc, PyLong_AsLong(x), PyLong_AsLong(y));
         break;
     case GL_UNSIGNED_INT:
-        ThrowIf(!(PyLong_Check(x) && PyLong_Check(y)), PyExc_TypeError, "all arguments have to be of type int.", NULL);
+        THROW_IF(!(PyLong_Check(x) && PyLong_Check(y)), PyExc_TypeError, "all arguments have to be of type int.", NULL);
         glProgramUniform2ui(self->id, loc, PyLong_AsLong(x), PyLong_AsLong(y));
         break;
     default:
@@ -435,14 +448,14 @@ static PyObject* set_uniform_vec2(PyShader* self, PyObject* args, PyObject* kwar
     Py_RETURN_NONE;
 }
 
-static PyObject* set_uniform_vec3(PyShader* self, PyObject* args, PyObject* kwargs)
+static PyObject *set_uniform_vec3(PyShader *self, PyObject *args, PyObject *kwargs)
 {
-    static char* kwNames[] = {"name", "x", "y", "z", "type", NULL};
+    static char *kwNames[] = {"name", "x", "y", "z", "type", NULL};
 
-    PyObject* name = NULL;
-    PyObject* x = NULL;
-    PyObject* y = NULL;
-    PyObject* z = NULL;
+    PyObject *name = NULL;
+    PyObject *x = NULL;
+    PyObject *y = NULL;
+    PyObject *z = NULL;
     GLenum type = GL_FLOAT;
     if (!PyArg_ParseTupleAndKeywords(args, kwargs, "UOOO|I", kwNames, &name, &x, &y, &z, &type))
         return NULL;
@@ -451,21 +464,22 @@ static PyObject* set_uniform_vec3(PyShader* self, PyObject* args, PyObject* kwar
     if (loc == -1)
         return NULL;
 
-    switch (type) {
+    switch (type)
+    {
     case GL_FLOAT:
-        ThrowIf(!(PyFloat_Check(x) && PyFloat_Check(y) && PyFloat_Check(z)), PyExc_TypeError, "all arguments have to be of type float.", NULL);
+        THROW_IF(!(PyFloat_Check(x) && PyFloat_Check(y) && PyFloat_Check(z)), PyExc_TypeError, "all arguments have to be of type float.", NULL);
         glProgramUniform3f(self->id, loc, PyFloat_AS_DOUBLE(x), PyFloat_AS_DOUBLE(y), PyFloat_AS_DOUBLE(z));
         break;
     case GL_DOUBLE:
-        ThrowIf(!(PyFloat_Check(x) && PyFloat_Check(y) && PyFloat_Check(z)), PyExc_TypeError, "all arguments have to be of type float.", NULL);
+        THROW_IF(!(PyFloat_Check(x) && PyFloat_Check(y) && PyFloat_Check(z)), PyExc_TypeError, "all arguments have to be of type float.", NULL);
         glProgramUniform3d(self->id, loc, PyFloat_AS_DOUBLE(x), PyFloat_AS_DOUBLE(y), PyFloat_AS_DOUBLE(z));
         break;
     case GL_INT:
-        ThrowIf(!(PyLong_Check(x) && PyLong_Check(y) && PyLong_Check(z)), PyExc_TypeError, "all arguments have to be of type int.", NULL);
+        THROW_IF(!(PyLong_Check(x) && PyLong_Check(y) && PyLong_Check(z)), PyExc_TypeError, "all arguments have to be of type int.", NULL);
         glProgramUniform3i(self->id, loc, PyLong_AsLong(x), PyLong_AsLong(y), PyLong_AsLong(z));
         break;
     case GL_UNSIGNED_INT:
-        ThrowIf(!(PyLong_Check(x) && PyLong_Check(y) && PyLong_Check(z)), PyExc_TypeError, "all arguments have to be of type int.", NULL);
+        THROW_IF(!(PyLong_Check(x) && PyLong_Check(y) && PyLong_Check(z)), PyExc_TypeError, "all arguments have to be of type int.", NULL);
         glProgramUniform3ui(self->id, loc, PyLong_AsLong(x), PyLong_AsLong(y), PyLong_AsLong(z));
         break;
     default:
@@ -476,15 +490,15 @@ static PyObject* set_uniform_vec3(PyShader* self, PyObject* args, PyObject* kwar
     Py_RETURN_NONE;
 }
 
-static PyObject* set_uniform_vec4(PyShader* self, PyObject* args, PyObject* kwargs)
+static PyObject *set_uniform_vec4(PyShader *self, PyObject *args, PyObject *kwargs)
 {
-    static char* kwNames[] = {"name", "x", "y", "z", "w", "type", NULL};
+    static char *kwNames[] = {"name", "x", "y", "z", "w", "type", NULL};
 
-    PyObject* name = NULL;
-    PyObject* x = NULL;
-    PyObject* y = NULL;
-    PyObject* z = NULL;
-    PyObject* w = NULL;
+    PyObject *name = NULL;
+    PyObject *x = NULL;
+    PyObject *y = NULL;
+    PyObject *z = NULL;
+    PyObject *w = NULL;
     GLenum type = GL_FLOAT;
     if (!PyArg_ParseTupleAndKeywords(args, kwargs, "UOOOO|I", kwNames, &name, &x, &y, &z, &w, &type))
         return NULL;
@@ -493,21 +507,22 @@ static PyObject* set_uniform_vec4(PyShader* self, PyObject* args, PyObject* kwar
     if (loc == -1)
         return NULL;
 
-    switch (type) {
+    switch (type)
+    {
     case GL_FLOAT:
-        ThrowIf(!(PyFloat_Check(x) && PyFloat_Check(y) && PyFloat_Check(z) && PyFloat_Check(w)), PyExc_TypeError, "all arguments have to be of type float.", NULL);
+        THROW_IF(!(PyFloat_Check(x) && PyFloat_Check(y) && PyFloat_Check(z) && PyFloat_Check(w)), PyExc_TypeError, "all arguments have to be of type float.", NULL);
         glProgramUniform4f(self->id, loc, PyFloat_AS_DOUBLE(x), PyFloat_AS_DOUBLE(y), PyFloat_AS_DOUBLE(z), PyFloat_AS_DOUBLE(w));
         break;
     case GL_DOUBLE:
-        ThrowIf(!(PyFloat_Check(x) && PyFloat_Check(y) && PyFloat_Check(z) && PyFloat_Check(w)), PyExc_TypeError, "all arguments have to be of type float.", NULL);
+        THROW_IF(!(PyFloat_Check(x) && PyFloat_Check(y) && PyFloat_Check(z) && PyFloat_Check(w)), PyExc_TypeError, "all arguments have to be of type float.", NULL);
         glProgramUniform4d(self->id, loc, PyFloat_AS_DOUBLE(x), PyFloat_AS_DOUBLE(y), PyFloat_AS_DOUBLE(z), PyFloat_AS_DOUBLE(w));
         break;
     case GL_INT:
-        ThrowIf(!(PyLong_Check(x) && PyLong_Check(y) && PyLong_Check(z) && PyLong_Check(w)), PyExc_TypeError, "all arguments have to be of type int.", NULL);
+        THROW_IF(!(PyLong_Check(x) && PyLong_Check(y) && PyLong_Check(z) && PyLong_Check(w)), PyExc_TypeError, "all arguments have to be of type int.", NULL);
         glProgramUniform4i(self->id, loc, PyLong_AsLong(x), PyLong_AsLong(y), PyLong_AsLong(z), PyLong_AsLong(w));
         break;
     case GL_UNSIGNED_INT:
-        ThrowIf(!(PyLong_Check(x) && PyLong_Check(y) && PyLong_Check(z) && PyLong_Check(w)), PyExc_TypeError, "all arguments have to be of type int.", NULL);
+        THROW_IF(!(PyLong_Check(x) && PyLong_Check(y) && PyLong_Check(z) && PyLong_Check(w)), PyExc_TypeError, "all arguments have to be of type int.", NULL);
         glProgramUniform4ui(self->id, loc, PyLong_AsLong(x), PyLong_AsLong(y), PyLong_AsLong(z), PyLong_AsLong(w));
         break;
     default:
@@ -518,17 +533,17 @@ static PyObject* set_uniform_vec4(PyShader* self, PyObject* args, PyObject* kwar
     Py_RETURN_NONE;
 }
 
-static bool set_uniform_mat_f(GLuint id, GLint loc, Py_buffer* buf, int len, bool transpose)
+static bool set_uniform_mat_f(GLuint id, GLint loc, Py_buffer *buf, int len, bool transpose)
 {
     SET_UNIFORM_MAT_IMPL(f)
 }
 
-static bool set_uniform_mat_d(GLuint id, GLint loc, Py_buffer* buf, int len, bool transpose)
+static bool set_uniform_mat_d(GLuint id, GLint loc, Py_buffer *buf, int len, bool transpose)
 {
     SET_UNIFORM_MAT_IMPL(d)
 }
 
-static bool check_mat_buf_valid(Py_buffer* buf, int len, size_t itemSize)
+static bool check_mat_buf_valid(Py_buffer *buf, int len, size_t itemSize)
 {
     if (!utils_check_buffer_contiguous(buf))
         return false;
@@ -543,20 +558,20 @@ static bool check_mat_buf_valid(Py_buffer* buf, int len, size_t itemSize)
     return true;
 }
 
-static bool set_uniform_mat_impl(PyShader* self, PyObject* args, PyObject* kwargs, int len)
+static bool set_uniform_mat_impl(PyShader *self, PyObject *args, PyObject *kwargs, int len)
 {
-    static char* kwNames[] = {"name", "value", "type", "transpose", NULL};
+    static char *kwNames[] = {"name", "value", "type", "transpose", NULL};
 
-    PyObject* name = NULL;
+    PyObject *name = NULL;
     Py_buffer buf = {0};
     GLenum type = GL_FLOAT;
     bool transpose = false;
-    if (!PyArg_ParseTupleAndKeywords(args, kwargs, "Uy*|Ip", kwNames, &name, &buf, &type, &transpose)) \
+    if (!PyArg_ParseTupleAndKeywords(args, kwargs, "Uy*|Ip", kwNames, &name, &buf, &type, &transpose))
         return false;
 
     GLint loc = get_uniform_location(self, name);
     if (loc == -1)
-        return NULL;
+        return false;
 
     switch (type)
     {
@@ -577,53 +592,48 @@ static bool set_uniform_mat_impl(PyShader* self, PyObject* args, PyObject* kwarg
     return false;
 }
 
-static PyObject* set_uniform_mat2(PyShader* self, PyObject* args, PyObject* kwargs)
+static PyObject *set_uniform_mat2(PyShader *self, PyObject *args, PyObject *kwargs)
 {
     return set_uniform_mat_impl(self, args, kwargs, 2) ? Py_NewRef(Py_None) : NULL;
 }
 
-static PyObject* set_uniform_mat3(PyShader* self, PyObject* args, PyObject* kwargs)
+static PyObject *set_uniform_mat3(PyShader *self, PyObject *args, PyObject *kwargs)
 {
     return set_uniform_mat_impl(self, args, kwargs, 3) ? Py_NewRef(Py_None) : NULL;
 }
 
-static PyObject* set_uniform_mat4(PyShader* self, PyObject* args, PyObject* kwargs)
+static PyObject *set_uniform_mat4(PyShader *self, PyObject *args, PyObject *kwargs)
 {
     return set_uniform_mat_impl(self, args, kwargs, 4) ? Py_NewRef(Py_None) : NULL;
 }
 
-static PyMethodDef pyShaderMethods[] = {
-    {"delete", (PyCFunction)py_shader_delete, METH_NOARGS, NULL},
-    {"use", (PyCFunction)py_shader_use, METH_NOARGS, NULL},
-    {"get_resource_location", (PyCFunction)py_shader_get_resource_location, METH_O, NULL},
-    {"validate", (PyCFunction)py_shader_validate, METH_NOARGS, NULL},
-    {"set_uniform_block_binding", (PyCFunction)py_shader_set_uniform_block_binding, METH_VARARGS, NULL},
-    {"get_uniform_block_location", (PyCFunction)py_shader_get_uniform_block_location, METH_O, NULL},
-    {"set_uniform", (PyCFunction)py_shader_set_uniform, METH_VARARGS, NULL},
-    {"set_uniform_array", (PyCFunction)py_shader_set_uniform_array, METH_VARARGS | METH_KEYWORDS, NULL},
-    {"set_uniform_vec2", (PyCFunction)set_uniform_vec2, METH_VARARGS | METH_KEYWORDS, NULL},
-    {"set_uniform_vec3", (PyCFunction)set_uniform_vec3, METH_VARARGS | METH_KEYWORDS, NULL},
-    {"set_uniform_vec4", (PyCFunction)set_uniform_vec4, METH_VARARGS | METH_KEYWORDS, NULL},
-    {"set_uniform_mat2", (PyCFunction)set_uniform_mat2, METH_VARARGS | METH_KEYWORDS, NULL},
-    {"set_uniform_mat3", (PyCFunction)set_uniform_mat3, METH_VARARGS | METH_KEYWORDS, NULL},
-    {"set_uniform_mat4", (PyCFunction)set_uniform_mat4, METH_VARARGS | METH_KEYWORDS, NULL},
-    {0},
-};
-
-static PyMemberDef pyShaderMembers[] = {
-    {"id", T_UINT, offsetof(PyShader, id), 0, NULL},
-    {"resources", T_OBJECT_EX, offsetof(PyShader, resources), READONLY, NULL},
-    {0},
-};
-
 PyTypeObject pyShaderType = {
     PyVarObject_HEAD_INIT(NULL, 0)
-    .tp_new = PyType_GenericNew,
+        .tp_new = PyType_GenericNew,
     .tp_flags = Py_TPFLAGS_DEFAULT,
     .tp_name = "pygl.shaders.Shader",
     .tp_basicsize = sizeof(PyShader),
-    .tp_init = py_shader_init,
-    .tp_dealloc = py_shader_dealloc,
-    .tp_methods = pyShaderMethods,
-    .tp_members = pyShaderMembers,
+    .tp_init = (initproc)py_shader_init,
+    .tp_dealloc = (destructor)py_shader_dealloc,
+    .tp_members = (PyMemberDef[]){
+        {"id", T_UINT, offsetof(PyShader, id), 0, NULL},
+        {"resources", T_OBJECT_EX, offsetof(PyShader, resources), READONLY, NULL},
+        {0}},
+    .tp_methods = (PyMethodDef[]){
+        {"delete", (PyCFunction)py_shader_delete, METH_NOARGS, NULL},
+        {"use", (PyCFunction)py_shader_use, METH_NOARGS, NULL},
+        {"get_resource_location", (PyCFunction)py_shader_get_resource_location, METH_O, NULL},
+        {"validate", (PyCFunction)py_shader_validate, METH_NOARGS, NULL},
+        {"set_uniform_block_binding", (PyCFunction)py_shader_set_uniform_block_binding, METH_VARARGS, NULL},
+        {"get_uniform_block_location", (PyCFunction)py_shader_get_uniform_block_location, METH_O, NULL},
+        {"set_uniform", (PyCFunction)py_shader_set_uniform, METH_VARARGS, NULL},
+        {"set_uniform_array", (PyCFunction)py_shader_set_uniform_array, METH_VARARGS | METH_KEYWORDS, NULL},
+        {"set_uniform_vec2", (PyCFunction)set_uniform_vec2, METH_VARARGS | METH_KEYWORDS, NULL},
+        {"set_uniform_vec3", (PyCFunction)set_uniform_vec3, METH_VARARGS | METH_KEYWORDS, NULL},
+        {"set_uniform_vec4", (PyCFunction)set_uniform_vec4, METH_VARARGS | METH_KEYWORDS, NULL},
+        {"set_uniform_mat2", (PyCFunction)set_uniform_mat2, METH_VARARGS | METH_KEYWORDS, NULL},
+        {"set_uniform_mat3", (PyCFunction)set_uniform_mat3, METH_VARARGS | METH_KEYWORDS, NULL},
+        {"set_uniform_mat4", (PyCFunction)set_uniform_mat4, METH_VARARGS | METH_KEYWORDS, NULL},
+        {0},
+    },
 };

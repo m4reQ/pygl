@@ -1,9 +1,9 @@
 #include "textureBuffer.h"
 #include "../utility.h"
 
-static PyObject* bind(PyTextureBuffer* self, PyObject* textureUnit)
+static PyObject *bind(PyTextureBuffer *self, PyObject *textureUnit)
 {
-    ThrowIf(
+    THROW_IF(
         !PyLong_Check(textureUnit),
         PyExc_TypeError,
         "texture_unit has to be of type int.",
@@ -21,7 +21,7 @@ static PyMethodDef methods[] = {
 
 PyTypeObject pyTextureBufferType = {
     PyVarObject_HEAD_INIT(NULL, 0)
-    .tp_flags = Py_TPFLAGS_BASETYPE,
+        .tp_flags = Py_TPFLAGS_BASETYPE,
     .tp_new = PyType_GenericNew,
     .tp_basicsize = sizeof(PyTextureBuffer),
     .tp_name = "pygl.buffers.TextureBuffer",

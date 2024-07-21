@@ -1,11 +1,9 @@
 import os
 import shutil
-import sys
 from distutils.command.install_data import install_data
 
 import setuptools as st
 from setuptools.command.build_ext import build_ext
-from setuptools.command.install_lib import install_lib
 
 CMAKE_BUILD_DIR = 'build/cmake'
 CMAKE_CONFIG = 'RelWithDebInfo' if os.path.exists('./.debug') else 'Release'

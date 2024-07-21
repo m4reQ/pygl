@@ -3,7 +3,7 @@
 #include "../textures/textureBase.h"
 #include "../utility.h"
 
-static const char* complete_status_to_string(GLenum status)
+static const char *complete_status_to_string(GLenum status)
 {
     switch (status)
     {
@@ -42,7 +42,7 @@ static bool check_framebuffer_complete(GLuint fb)
 }
 
 // This function never fails after the framebuffer have beed initialized
-static bool recreate_attachments(PyFramebuffer* self, bool isResizing, size_t* colorAttachmentsCount)
+static bool recreate_attachments(PyFramebuffer *self, bool isResizing, size_t *colorAttachmentsCount)
 {
     size_t nAttachments = PyList_GET_SIZE(self->specs);
 
@@ -52,9 +52,9 @@ static bool recreate_attachments(PyFramebuffer* self, bool isResizing, size_t* c
     size_t _colorAttachmentsCount = 0;
     for (size_t i = 0; i < nAttachments; i++)
     {
-        PyAttachmentSpec* spec = (PyAttachmentSpec*)PyList_GET_ITEM(self->specs, i);
-        ThrowIf(
-            !is_attachment_spec((PyObject*)spec),
+        PyAttachmentSpec *spec = (PyAttachmentSpec *)PyList_GET_ITEM(self->specs, i);
+        THROW_IF(
+            !is_attachment_spec((PyObject *)spec),
             PyExc_TypeError,
             "All objects in specs have to be either of FramebufferAttachment or TextureAttachment types.",
             false);
@@ -99,7 +99,7 @@ static bool recreate_attachments(PyFramebuffer* self, bool isResizing, size_t* c
     return true;
 }
 
-static void delete_framebuffer_contents(PyFramebuffer* self)
+static void delete_framebuffer_contents(PyFramebuffer *self)
 {
     glDeleteFramebuffers(1, &self->id);
 
@@ -118,7 +118,7 @@ static void delete_framebuffer_contents(PyFramebuffer* self)
     }
 }
 
-static PyObject* bind(PyFramebuffer* self, PyObject* Py_UNUSED(args))
+static PyObject *bind(PyFramebuffer *self, PyObject *Py_UNUSED(args))
 {
     glBindFramebuffer(GL_FRAMEBUFFER, self->id);
     glViewport(0, 0, self->width, self->height);
@@ -126,13 +126,13 @@ static PyObject* bind(PyFramebuffer* self, PyObject* Py_UNUSED(args))
     Py_RETURN_NONE;
 }
 
-static PyObject* unbind(PyFramebuffer* Py_UNUSED(self), PyObject* Py_UNUSED(args))
+static PyObject *unbind(PyFramebuffer *Py_UNUSED(self), PyObject *Py_UNUSED(args))
 {
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
     Py_RETURN_NONE;
 }
 
-static PyObject* delete(PyFramebuffer* self, PyObject* Py_UNUSED(args))
+static PyObject *delete(PyFramebuffer *self, PyObject *Py_UNUSED(args))
 {
     delete_framebuffer_contents(self);
 
@@ -142,7 +142,7 @@ static PyObject* delete(PyFramebuffer* self, PyObject* Py_UNUSED(args))
     Py_RETURN_NONE;
 }
 
-static PyObject* resize(PyFramebuffer* self, PyObject* args)
+static PyObject *resize(PyFramebuffer *self, PyObject *args)
 {
     GLsizei width = 0, height = 0;
     if (!PyArg_ParseTuple(args, "ii", &width, &height))
@@ -161,9 +161,9 @@ static PyObject* resize(PyFramebuffer* self, PyObject* args)
     Py_RETURN_NONE;
 }
 
-static PyObject* get_attachment_id(PyFramebuffer* self, PyObject* attachment)
+static PyObject *get_attachment_id(PyFramebuffer *self, PyObject *attachment)
 {
-    ThrowIf(
+    THROW_IF(
         !PyLong_Check(attachment),
         PyExc_TypeError,
         "attachment has to be of type int.",
@@ -185,26 +185,26 @@ static PyObject* get_attachment_id(PyFramebuffer* self, PyObject* attachment)
     return NULL;
 }
 
-static PyObject* size_getter(PyFramebuffer* self, void* Py_UNUSED(closure))
+static PyObject *size_getter(PyFramebuffer *self, void *Py_UNUSED(closure))
 {
     return PyTuple_Pack(2, PyLong_FromLong(self->width), PyLong_FromLong(self->height));
 }
 
-static int init(PyFramebuffer* self, PyObject* args, PyObject* Py_UNUSED(kwargs))
+static int init(PyFramebuffer *self, PyObject *args, PyObject *Py_UNUSED(kwargs))
 {
     if (!PyArg_ParseTuple(args, "O!ii", &PyList_Type, &self->specs, &self->width, &self->height))
         return -1;
 
     Py_INCREF(self->specs);
 
-    ThrowIf(
+    THROW_IF(
         self->width < 0 || self->height < 0,
         PyExc_ValueError,
         "Framebuffer width and height have to be greater than 0.",
         -1);
 
     // catch early to prevent GL_FRAMEBUFFER_INCOMPLETE_MISSING_ATTACHMENT later
-    ThrowIf(
+    THROW_IF(
         PyList_GET_SIZE(self->specs) == 0,
         PyExc_ValueError,
         "At least one framebuffer attachment must be specified.",
@@ -223,7 +223,7 @@ static int init(PyFramebuffer* self, PyObject* args, PyObject* Py_UNUSED(kwargs)
     }
     else
     {
-        GLenum* drawBuffers = PyMem_Malloc(sizeof(GLenum) * colorAttachmentsCount);
+        GLenum *drawBuffers = PyMem_Malloc(sizeof(GLenum) * colorAttachmentsCount);
         for (GLenum i = 0; i < colorAttachmentsCount; i++)
             drawBuffers[i] = GL_COLOR_ATTACHMENT0 + i;
 
@@ -235,7 +235,7 @@ static int init(PyFramebuffer* self, PyObject* args, PyObject* Py_UNUSED(kwargs)
     return check_framebuffer_complete(self->id) ? 0 : -1;
 }
 
-static void dealloc(PyFramebuffer* self)
+static void dealloc(PyFramebuffer *self)
 {
     delete_framebuffer_contents(self);
 
@@ -255,13 +255,13 @@ static PyGetSetDef getSet[] = {
 static PyMethodDef methods[] = {
     {"bind", (PyCFunction)bind, METH_NOARGS, NULL},
     {"unbind", (PyCFunction)unbind, METH_NOARGS, NULL},
-    {"delete", (PyCFunction)delete, METH_NOARGS, NULL},
+    {"delete", (PyCFunction) delete, METH_NOARGS, NULL},
     {"resize", (PyCFunction)resize, METH_VARARGS, NULL},
     {"get_attachment_id", (PyCFunction)get_attachment_id, METH_O, NULL},
     // TODO
     // {"clear", (PyCFunction)clear, METH_VARARGS, NULL},
     // {"read_attachment", (PyCFunction)read_attachment, METH_VARARGS, NULL},
-    // {"read_pixel", (PyCFunction)read_pixel, METH_VARARGS},
+    // {"read_pixel", (PyCFunction)read_pixel, METH_VARARGS, NULL},
     {0},
 };
 
@@ -275,7 +275,7 @@ static PyMemberDef members[] = {
 
 PyTypeObject pyFramebufferType = {
     PyVarObject_HEAD_INIT(NULL, 0)
-    .tp_flags = Py_TPFLAGS_DEFAULT,
+        .tp_flags = Py_TPFLAGS_DEFAULT,
     .tp_new = PyType_GenericNew,
     .tp_name = "pygl.framebuffer.Framebuffer",
     .tp_basicsize = sizeof(PyFramebuffer),

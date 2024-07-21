@@ -9,31 +9,31 @@ static GLuint get_gl_type_size(GLenum type)
 {
     switch (type)
     {
-        case GL_DOUBLE:
-            return sizeof(GLdouble);
-        case GL_FLOAT:
-            return sizeof(GLfloat);
-        case GL_HALF_FLOAT:
-            return sizeof(GLhalf);
-        case GL_INT:
-            return sizeof(GLint);
-        case GL_UNSIGNED_INT:
-            return sizeof(GLuint);
-        case GL_SHORT:
-            return sizeof(GLshort);
-        case GL_UNSIGNED_SHORT:
-            return sizeof(GLushort);
-        case GL_BYTE:
-            return sizeof(GLbyte);
-        case GL_UNSIGNED_BYTE:
-            return sizeof(GLubyte);
+    case GL_DOUBLE:
+        return sizeof(GLdouble);
+    case GL_FLOAT:
+        return sizeof(GLfloat);
+    case GL_HALF_FLOAT:
+        return sizeof(GLhalf);
+    case GL_INT:
+        return sizeof(GLint);
+    case GL_UNSIGNED_INT:
+        return sizeof(GLuint);
+    case GL_SHORT:
+        return sizeof(GLshort);
+    case GL_UNSIGNED_SHORT:
+        return sizeof(GLushort);
+    case GL_BYTE:
+        return sizeof(GLbyte);
+    case GL_UNSIGNED_BYTE:
+        return sizeof(GLubyte);
     }
 
     assert(0 && "Unreachable at vertexArray::get_gl_type_size");
     return 0;
 }
 
-static bool set_attrib_format(GLuint array, PyVertexDescriptor* desc, GLuint* offset, GLuint rowOffset)
+static bool set_attrib_format(GLuint array, PyVertexDescriptor *desc, GLuint *offset, GLuint rowOffset)
 {
     switch (desc->type)
     {
@@ -77,7 +77,7 @@ static bool set_attrib_format(GLuint array, PyVertexDescriptor* desc, GLuint* of
     return true;
 }
 
-static bool add_vertex_input(GLuint array, GLuint index, PyVertexInput* input)
+static bool add_vertex_input(GLuint array, GLuint index, PyVertexInput *input)
 {
     GLuint attribOffset = 0;
 
@@ -87,9 +87,9 @@ static bool add_vertex_input(GLuint array, GLuint index, PyVertexInput* input)
     int nDescriptors = PyList_GET_SIZE(input->descriptors);
     for (int i = 0; i < nDescriptors; i++)
     {
-        PyVertexDescriptor* descriptor = (PyVertexDescriptor*)PyList_GET_ITEM(input->descriptors, i);
-        ThrowIf(
-            !PyObject_IsInstance((PyObject*)descriptor, (PyObject*)&pyVertexDescriptorType),
+        PyVertexDescriptor *descriptor = (PyVertexDescriptor *)PyList_GET_ITEM(input->descriptors, i);
+        THROW_IF(
+            !PyObject_IsInstance((PyObject *)descriptor, (PyObject *)&pyVertexDescriptorType),
             PyExc_TypeError,
             "All vertex descriptors objects has to be of type pygl.vertex_array.VertexDescriptor",
             false);
@@ -107,12 +107,12 @@ static bool add_vertex_input(GLuint array, GLuint index, PyVertexInput* input)
     return true;
 }
 
-static int py_vertex_array_init(PyVertexArray* self, PyObject* args, PyObject* kwargs)
+static int py_vertex_array_init(PyVertexArray *self, PyObject *args, PyObject *kwargs)
 {
-    static char* kwNames[] = {"layout", "element_buffer", NULL};
+    static char *kwNames[] = {"layout", "element_buffer", NULL};
 
-    PyObject* vertexInputs = NULL;
-    PyBuffer* elementBuffer = NULL;
+    PyObject *vertexInputs = NULL;
+    PyBuffer *elementBuffer = NULL;
 
     if (!PyArg_ParseTupleAndKeywords(args, kwargs, "O!|O", kwNames, &PyList_Type, &vertexInputs, &elementBuffer))
         return -1;
@@ -121,8 +121,8 @@ static int py_vertex_array_init(PyVertexArray* self, PyObject* args, PyObject* k
 
     if (elementBuffer)
     {
-        ThrowIf(
-            !PyObject_IsInstance((PyObject*)elementBuffer, (PyObject*)&pyBufferType),
+        THROW_IF(
+            !PyObject_IsInstance((PyObject *)elementBuffer, (PyObject *)&pyBufferType),
             PyExc_TypeError,
             "Element buffer has to be of type pygl.buffers.Buffer or pygl.buffers.MappedBuffer",
             -1);
@@ -133,9 +133,9 @@ static int py_vertex_array_init(PyVertexArray* self, PyObject* args, PyObject* k
     int nInputs = PyList_GET_SIZE(vertexInputs);
     for (int i = 0; i < nInputs; i++)
     {
-        PyVertexInput* input = (PyVertexInput*)PyList_GET_ITEM(vertexInputs, i);
+        PyVertexInput *input = (PyVertexInput *)PyList_GET_ITEM(vertexInputs, i);
 
-        ThrowIf(
+        THROW_IF(
             !PyList_Check(input->descriptors),
             PyExc_TypeError,
             "layout must be a list of pygl.vertex_array.VertexInput objects.",
@@ -148,7 +148,7 @@ static int py_vertex_array_init(PyVertexArray* self, PyObject* args, PyObject* k
     return 0;
 }
 
-static PyObject* py_vertex_array_delete(PyVertexArray* self, PyObject* Py_UNUSED(args))
+static PyObject *py_vertex_array_delete(PyVertexArray *self, PyObject *Py_UNUSED(args))
 {
     glDeleteVertexArrays(1, &self->id);
     self->id = 0;
@@ -156,13 +156,13 @@ static PyObject* py_vertex_array_delete(PyVertexArray* self, PyObject* Py_UNUSED
     Py_RETURN_NONE;
 }
 
-static PyObject* py_vertex_array_bind(PyVertexArray* self, PyObject* Py_UNUSED(args))
+static PyObject *py_vertex_array_bind(PyVertexArray *self, PyObject *Py_UNUSED(args))
 {
     glBindVertexArray(self->id);
     Py_RETURN_NONE;
 }
 
-static void py_vertex_array_dealloc(PyVertexArray* self)
+static void py_vertex_array_dealloc(PyVertexArray *self)
 {
     glDeleteVertexArrays(1, &self->id);
     Py_TYPE(self)->tp_free(self);
@@ -181,7 +181,7 @@ static PyMemberDef pyVertexArrayMembers[] = {
 
 PyTypeObject pyVertexArrayType = {
     PyVarObject_HEAD_INIT(NULL, 0)
-    .tp_new = PyType_GenericNew,
+        .tp_new = PyType_GenericNew,
     .tp_flags = Py_TPFLAGS_DEFAULT,
     .tp_name = "pygl.vertex_array.VertexArray",
     .tp_basicsize = sizeof(PyVertexArray),

@@ -5,13 +5,13 @@
 
 static bool isLoaded = false;
 
-static PyObject* py_init(PyObject* Py_UNUSED(self), PyObject* getAddrProc)
+static PyObject *py_init(PyObject *Py_UNUSED(self), PyObject *getAddrProc)
 {
     if (isLoaded)
         Py_RETURN_NONE;
 
     int success = gladLoaderLoadGL();
-    ThrowIf(
+    THROW_IF(
         !success,
         PyExc_RuntimeError,
         "Failed to load OpenGL bindings.",
