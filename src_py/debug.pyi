@@ -13,6 +13,7 @@ class DebugSource(enum.IntEnum):
     DEBUG_SOURCE_THIRD_PARTY: int
     DEBUG_SOURCE_WINDOW_SYSTEM: int
     DEBUG_SOURCE_OTHER: int
+    DEBUG_SOURCE_SHADER_COMPILER: int
 
 class DebugType(enum.IntEnum):
     DEBUG_TYPE_DEPRECATED_BEHAVIOR: int
