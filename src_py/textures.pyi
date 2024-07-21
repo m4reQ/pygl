@@ -35,27 +35,6 @@ class MagFilter(enum.IntEnum):
     NEAREST: int
     LINEAR: int
 
-class TextureParameter(enum.IntEnum):
-    DEPTH_STENCIL_TEXTURE_MODE: int
-    TEXTURE_BASE_LEVEL: int
-    TEXTURE_BORDER_COLOR: int
-    TEXTURE_COMPARE_FUNC: int
-    TEXTURE_COMPARE_MODE: int
-    TEXTURE_LOD_BIAS: int
-    TEXTURE_MIN_FILTER: int
-    TEXTURE_MAG_FILTER: int
-    TEXTURE_MIN_LOD: int
-    TEXTURE_MAX_LOD: int
-    TEXTURE_MAX_LEVEL: int
-    TEXTURE_SWIZZLE_R: int
-    TEXTURE_SWIZZLE_G: int
-    TEXTURE_SWIZZLE_B: int
-    TEXTURE_SWIZZLE_A: int
-    TEXTURE_SWIZZLE_RGBA: int
-    TEXTURE_WRAP_S: int
-    TEXTURE_WRAP_T: int
-    TEXTURE_WRAP_R: int
-
 class WrapMode(enum.IntEnum):
     CLAMP_TO_EDGE: int
     CLAMP_TO_BORDER: int

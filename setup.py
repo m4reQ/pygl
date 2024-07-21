@@ -1,6 +1,5 @@
 import os
 import shutil
-from distutils.command.install_data import install_data
 
 import setuptools as st
 from setuptools.command.build_ext import build_ext
@@ -30,15 +29,15 @@ class pygl_build_ext(build_ext):
 
         return super().run()
 
-class pygl_install_data(install_data):
-    def run(self) -> None:
-        install_cmd = self.get_finalized_command('install')
-        self.install_dir = getattr(install_cmd, 'install_lib')
+# class pygl_install_data(install_data):
+#     def run(self) -> None:
+#         install_cmd = self.get_finalized_command('install')
+#         self.install_dir = getattr(install_cmd, 'install_lib')
 
-        return super().run()
+#         return super().run()
 
 st.setup(
     ext_modules=[st.Extension('', [])], # empty extension to force invoke build_ext
     cmdclass={
-        'build_ext': pygl_build_ext,
-        'install_data': pygl_install_data})
+        'build_ext': pygl_build_ext}) #,
+        # 'install_data': pygl_install_data})

@@ -259,8 +259,8 @@ static EnumDef polygonModeEnum = {
         {0}},
 };
 
-static EnumDef blendFuncEnum = {
-    .enumName = "BlendFunc",
+static EnumDef blendFactorEnum = {
+    .enumName = "BlendFactor",
     .values = (EnumValue[]){
         {"ZERO", GL_ZERO},
         {"ONE", GL_ONE},
@@ -319,7 +319,7 @@ static ModuleInfo modInfo = {
         &enableCapEnum,
         &depthFuncEnum,
         &polygonModeEnum,
-        &blendFuncEnum,
+        &blendFactorEnum,
         &stringNameEnum,
         {0},
     },
