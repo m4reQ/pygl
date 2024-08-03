@@ -1,6 +1,8 @@
 #include "buffer.h"
-#include <structmember.h>
 #include "../utility.h"
+#include "../math/matrix/matrix.h"
+#include "../math/vector/vector.h"
+#include "../math/quaternion.h"
 
 static PyObject *map(PyBuffer *self, PyObject *Py_UNUSED(args))
 {
@@ -35,7 +37,7 @@ static PyObject *transfer(PyBuffer *self, PyObject *Py_UNUSED(args))
 
     if (self->flags & GL_DYNAMIC_STORAGE_BIT)
         glNamedBufferSubData(self->id, 0, (GLsizeiptr)self->currentOffset, self->dataPtr);
-    else if (!(self->flags & GL_MAP_PERSISTENT_BIT) && self->dataPtr) // if buffer was not mapped ealier just do nothing
+    else if (((self->flags & GL_MAP_PERSISTENT_BIT) != GL_MAP_PERSISTENT_BIT) && self->dataPtr) // if buffer was not mapped ealier just do nothing
     {
         glUnmapNamedBuffer(self->id);
         self->dataPtr = NULL;
@@ -46,8 +48,10 @@ static PyObject *transfer(PyBuffer *self, PyObject *Py_UNUSED(args))
     Py_RETURN_NONE;
 }
 
-static PyObject *store(PyBuffer *self, PyObject *data)
+static PyObject *store(PyBuffer *self, PyObject *args, PyObject *kwargs)
 {
+    static char *kwNames[] = {"data", "offset", NULL};
+
     PyObject *result = NULL;
 
     if (!(self->flags & GL_MAP_PERSISTENT_BIT) &&
@@ -58,28 +62,58 @@ static PyObject *store(PyBuffer *self, PyObject *data)
         return NULL;
     }
 
+    PyObject *data = NULL;
     Py_buffer dataBuffer = {0};
-    int _result = PyObject_GetBuffer(data, &dataBuffer, PyBUF_C_CONTIGUOUS);
-    THROW_IF_GOTO(
-        _result == -1,
-        PyExc_ValueError,
-        "Data buffer has to be C-contiguous. For more informations go to https://github.com/m4reQ/pygl?tab=readme-ov-file#buffer-protocol-usage.",
-        end);
+    size_t offset = self->currentOffset;
+    if (!PyArg_ParseTupleAndKeywords(args, kwargs, "O|n", kwNames, &data, &offset))
+        return NULL;
 
-    THROW_IF_GOTO(
-        dataBuffer.len > self->size - self->currentOffset,
-        PyExc_RuntimeError,
-        "Data transfer would cause buffer overflow.",
-        end);
+    void *dataPtr = (char *)self->dataPtr + offset;
+    size_t dataSize = 0;
 
-    _result = PyBuffer_ToContiguous((char *)self->dataPtr + self->currentOffset, &dataBuffer, dataBuffer.len, 'C');
-    THROW_IF_GOTO(
-        _result == -1,
-        PyExc_RuntimeError,
-        "Couldn't transfer data to the buffer.",
-        end);
+    // FIXME Add fast path for matrix and vector stores
+    if (PyObject_CheckBuffer(data))
+    {
+        int _result = PyObject_GetBuffer(data, &dataBuffer, PyBUF_CONTIG_RO); // double check to catch non-contiguous buffers
+        THROW_IF_GOTO(
+            _result == -1,
+            PyExc_ValueError,
+            "Data buffer has to be C-contiguous. For more informations go to https://github.com/m4reQ/pygl?tab=readme-ov-file#buffer-protocol-usage.",
+            end);
 
-    self->currentOffset += dataBuffer.len;
+        THROW_IF_GOTO(
+            dataBuffer.len > self->size - self->currentOffset,
+            PyExc_RuntimeError,
+            "Data transfer would cause buffer overflow.",
+            end);
+
+        memcpy(dataPtr, dataBuffer.buf, dataBuffer.len);
+        dataSize = dataBuffer.len;
+    }
+    else if (PyObject_IsInstance(data, (PyObject *)&pyQuaternionType))
+    {
+        py_quaternion_copy(dataPtr, (Quaternion *)data);
+        dataSize = sizeof(versor);
+    }
+    else if (PyLong_Check(data))
+    {
+        *(int *)dataPtr = PyLong_AsLong(data);
+        dataSize = sizeof(int);
+    }
+    else if (PyFloat_Check(data))
+    {
+        *(float *)dataPtr = (float)PyFloat_AS_DOUBLE(data);
+        dataSize = sizeof(float);
+    }
+    else
+    {
+        PyErr_Format(PyExc_TypeError, "Expected argument to be of math type, buffer or simple numeric type, got %s.", Py_TYPE(data)->tp_name);
+        return NULL;
+    }
+
+    if (offset == 0 || offset == self->currentOffset)
+        self->currentOffset += dataSize;
+
     result = Py_NewRef(Py_None);
 
 end:
@@ -252,5 +286,15 @@ PyTypeObject pyBufferType = {
         {"size", T_ULONGLONG, offsetof(PyBuffer, size), READONLY, NULL},
         {"current_offset", T_ULONGLONG, offsetof(PyBuffer, currentOffset), 0, NULL},
         {0}},
-    .tp_methods = (PyMethodDef[]){{"delete", (PyCFunction) delete, METH_NOARGS, NULL}, {"store", (PyCFunction)store, METH_O, NULL}, {"transfer", (PyCFunction)transfer, METH_NOARGS, NULL}, {"reset_offset", (PyCFunction)reset_offset, METH_NOARGS, NULL}, {"map", (PyCFunction)map, METH_NOARGS, NULL}, {"read", (PyCFunction)buf_read, METH_VARARGS | METH_KEYWORDS, NULL}, {"bind_base", (PyCFunction)bind_base, METH_VARARGS, NULL}, {"bind", (PyCFunction)bind, METH_O, NULL}, {0}},
+    .tp_methods = (PyMethodDef[]){
+        {"delete", (PyCFunction) delete, METH_NOARGS, NULL},
+        {"store", (PyCFunction)store, METH_VARARGS | METH_KEYWORDS, NULL},
+        {"transfer", (PyCFunction)transfer, METH_NOARGS, NULL},
+        {"reset_offset", (PyCFunction)reset_offset, METH_NOARGS, NULL},
+        {"map", (PyCFunction)map, METH_NOARGS, NULL},
+        {"read", (PyCFunction)buf_read, METH_VARARGS | METH_KEYWORDS, NULL},
+        {"bind_base", (PyCFunction)bind_base, METH_VARARGS, NULL},
+        {"bind", (PyCFunction)bind, METH_O, NULL},
+        {0},
+    },
 };

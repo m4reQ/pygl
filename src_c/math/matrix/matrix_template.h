@@ -6,7 +6,10 @@
 
 #include <string.h>
 #include <stdbool.h>
+#include <cglm/cam.h>
+#include <cglm/affine.h>
 #include "matrix.h"
+#include "../quaternion.h"
 #include "../vector/vector.h"
 #include "../../utility.h"
 
@@ -17,7 +20,9 @@
 #define _VEC_PY_TYPE CAT(CAT(pyVector, MAT_LEN), Type)
 #define _SELF _TYPE *self
 #define _GLM_INVOKE(func, ...) CAT(CAT(CAT(glm_mat, MAT_LEN), _), func)(__VA_ARGS__)
-#define _NEW(var) _TYPE *var = PyObject_New(_TYPE, &_PY_TYPE)
+#define _NEW(var)                                \
+    _TYPE *var = PyObject_New(_TYPE, &_PY_TYPE); \
+    var->length = MAT_LEN * MAT_LEN
 #define _GLM_VEC_COPY(src, dst) CAT(CAT(glm_vec, MAT_LEN), _copy)(src, dst)
 #define _MAT_OP_CHECK_TYPE(obj)                                           \
     do                                                                    \
@@ -109,6 +114,8 @@ static int init(_SELF, PyObject *args, PyObject *kwargs)
         return -1;
     }
 
+    self->length = MAT_LEN * MAT_LEN;
+
     return 0;
 }
 
@@ -116,6 +123,8 @@ static PyObject *identity(PyTypeObject *cls, PyObject *Py_UNUSED(args))
 {
     _TYPE *res = PyObject_New(_TYPE, cls);
     _GLM_INVOKE(identity, res->data);
+
+    res->length = MAT_LEN * MAT_LEN;
 
     return (PyObject *)res;
 }
@@ -216,8 +225,7 @@ static int row3_set(_SELF, PyObject *value, void *Py_UNUSED(closure))
 }
 
 #pragma region AS_NUMBER
-static PyObject *
-matmul(_SELF, PyObject *other)
+static PyObject *matmul(_SELF, PyObject *other)
 {
     if (PyObject_IsInstance(other, (PyObject *)&_PY_TYPE))
     {
@@ -252,8 +260,8 @@ static PyObject *add(_SELF, Matrix4 *other)
 {
     _MAT_OP_CHECK_TYPE(other);
 
-    float *data = self->data;
-    float *otherData = other->data;
+    float *data = &self->data[0];
+    float *otherData = &other->data[0];
 
     _NEW(res);
     for (size_t i = 0; i < MAT_LEN * MAT_LEN; i++)
@@ -266,8 +274,8 @@ static PyObject *iadd(_SELF, Matrix4 *other)
 {
     _MAT_OP_CHECK_TYPE(other);
 
-    float *data = self->data;
-    float *otherData = other->data;
+    float *data = &self->data[0];
+    float *otherData = &other->data[0];
 
     for (size_t i = 0; i < MAT_LEN * MAT_LEN; i++)
         data[i] = data[i] + otherData[i];
@@ -279,8 +287,8 @@ static PyObject *sub(_SELF, Matrix4 *other)
 {
     _MAT_OP_CHECK_TYPE(other);
 
-    float *data = self->data;
-    float *otherData = other->data;
+    float *data = &self->data[0];
+    float *otherData = &other->data[0];
 
     _NEW(res);
     for (size_t i = 0; i < MAT_LEN * MAT_LEN; i++)
@@ -293,8 +301,8 @@ static PyObject *isub(_SELF, Matrix4 *other)
 {
     _MAT_OP_CHECK_TYPE(other);
 
-    float *data = self->data;
-    float *otherData = other->data;
+    float *data = &self->data[0];
+    float *otherData = &other->data[0];
 
     for (size_t i = 0; i < MAT_LEN * MAT_LEN; i++)
         data[i] = data[i] - otherData[i];
@@ -330,7 +338,7 @@ static bool get_indices(PyObject *indices, unsigned int *n, unsigned int *m)
 
 static Py_ssize_t len(_SELF)
 {
-    return 16;
+    return self->length;
 }
 
 static PyObject *subscript(_SELF, PyObject *indices)
@@ -362,12 +370,189 @@ static int subscript_assign(_SELF, PyObject *indices, PyObject *value)
 }
 #pragma endregion
 
+static int get_buffer(_SELF, Py_buffer *buffer, int flags)
+{
+    *buffer = (Py_buffer){
+        .obj = Py_NewRef(self),
+        .buf = self->data,
+        .len = MAT_LEN * MAT_LEN * sizeof(float),
+        .itemsize = sizeof(float),
+        .ndim = 2,
+        .readonly = !(flags & PyBUF_WRITABLE == PyBUF_WRITABLE),
+        .format = (flags & PyBUF_FORMAT == PyBUF_FORMAT) ? "f" : NULL,
+        .shape = (Py_ssize_t[]){MAT_LEN, MAT_LEN},
+        .strides = (Py_ssize_t[]){sizeof(float), 4 * sizeof(float)},
+    };
+
+    return 0;
+}
+
+static Matrix4 *ortho(PyTypeObject *cls, PyObject *args, PyObject *kwargs)
+{
+    static char *kwNames[] = {"left", "right", "bottom", "top", "z_near", "z_far", NULL};
+
+    float left, right, bottom, top;
+    float zNear = -1.0f;
+    float zFar = 1.0f;
+    if (!PyArg_ParseTupleAndKeywords(args, kwargs, "ffff|ff", kwNames, &left, &right, &bottom, &top, &zNear, &zFar))
+        return NULL;
+
+    _NEW(result);
+
+    glm_ortho(
+        left,
+        right,
+        bottom,
+        top,
+        zNear,
+        zFar,
+        result->data);
+
+    return result;
+}
+
+static Matrix4 *perspective(PyTypeObject *cls, PyObject *args, PyObject *kwargs)
+{
+    static char *kwNames[] = {"fov", "aspect", "z_near", "z_far", NULL};
+
+    float fov, aspect;
+    float zNear = -1.0f;
+    float zFar = 1.0f;
+
+    if (!PyArg_ParseTupleAndKeywords(args, kwargs, "ff|ff", kwNames, &fov, &aspect, &zNear, &zFar))
+        return NULL;
+
+    _NEW(result);
+
+    glm_perspective(
+        fov,
+        aspect,
+        zNear,
+        zFar,
+        result->data);
+
+    return result;
+}
+
+static Matrix4 *look_at(PyTypeObject *cls, PyObject *args, PyObject *kwargs)
+{
+    static char *kwNames[] = {"eye", "center", "up", NULL};
+
+    Vector3 *eye, *center;
+    Vector3 *up = NULL;
+    if (!PyArg_ParseTupleAndKeywords(args, kwargs, "O!O!|O!", kwNames, &pyVector3Type, &eye, &pyVector3Type, &center, &pyVector3Type, &up))
+        return NULL;
+
+    vec3 *upData = (up != NULL) ? &up->data : &(vec3){0.0f, 1.0f, 0.0f};
+
+    _NEW(result);
+    glm_lookat(eye->data, center->data, *upData, result->data);
+
+    return result;
+}
+
+static Matrix4 *look(PyTypeObject *cls, PyObject *args, PyObject *kwargs)
+{
+    Matrix4 *result;
+
+    if (PyTuple_GET_SIZE(args) == 2) // Matrix4.look(Vector3, Quaternion)
+    {
+        Vector3 *eye;
+        Quaternion *orientation;
+        if (!PyArg_ParseTuple(args, "O!O!", &pyVector3Type, &eye, &pyQuaternionType, &orientation))
+            return NULL;
+
+        _NEW(result);
+        glm_quat_look(eye->data, orientation->data, result->data);
+    }
+    else // Matrix4.look(Vector3, Vector3, Vector3 = Vector3(0.0, 1.0, 0.0))
+    {
+        static char *kwNames[] = {"eye", "dir", "up", NULL};
+
+        Vector3 *eye, *dir;
+        Vector3 *up = NULL;
+        if (!PyArg_ParseTupleAndKeywords(args, kwargs, "O!O!|O!", kwNames, &pyVector3Type, &eye, &pyVector3Type, &dir, &pyVector3Type, &up))
+            return NULL;
+
+        vec3 *upData = (up != NULL) ? &up->data : &(vec3){0.0f, 1.0f, 0.0f};
+
+        _NEW(result);
+        glm_look(eye->data, dir->data, *upData, result->data);
+    }
+
+    return result;
+}
+
+static Matrix4 *transform(PyTypeObject *cls, PyObject *args, PyObject *kwargs)
+{
+    size_t argsCount = PyTuple_GET_SIZE(args);
+    if (argsCount == 0)
+    {
+        PyErr_SetString(PyExc_TypeError, "Function requires at least one argument.");
+        return NULL;
+    }
+
+    mat4 matrix = GLM_MAT4_IDENTITY_INIT;
+    bool hasScale = false;
+
+    if (argsCount >= 1)
+    {
+        Vector3 *translation = PyTuple_GET_ITEM(args, 0);
+        if (!PyObject_IsInstance(translation, &pyVector3Type))
+        {
+            PyErr_Format(PyExc_TypeError, "Expected argument 1 to be of type pygl.math.Vector3, got: %s.", Py_TYPE(translation)->tp_name);
+            return NULL;
+        }
+
+        glm_translate(matrix, translation->data);
+    }
+    if (argsCount >= 2)
+        hasScale = true; // we have to defer applying scale to keep valid transformation order
+    if (argsCount >= 3)
+    {
+        Quaternion *rotation = PyTuple_GET_ITEM(args, 2);
+        if (!PyObject_IsInstance(rotation, &pyQuaternionType))
+        {
+            PyErr_Format(PyExc_TypeError, "Expected argument 3 to be of type pygl.math.Quaternion, got: %s.", Py_TYPE(rotation)->tp_name);
+            return NULL;
+        }
+
+        glm_quat_rotate(matrix, rotation->data, matrix);
+    }
+
+    if (hasScale)
+    {
+        Vector3 *scale = PyTuple_GET_ITEM(args, 1);
+        if (!PyObject_IsInstance(scale, &pyVector3Type))
+        {
+            PyErr_Format(PyExc_TypeError, "Expected argument 1 to be of type pygl.math.Vector3, got: %s.", Py_TYPE(scale)->tp_name);
+            return NULL;
+        }
+
+        glm_scale(matrix, scale->data);
+    }
+
+    _NEW(result);
+    glm_mat4_copy(matrix, result->data);
+
+    return result;
+}
+
+static PyObject *class_length(PyTypeObject *cls, PyObject *Py_UNUSED(args))
+{
+    return PyLong_FromLong(MAT_LEN * MAT_LEN);
+}
+
 PyTypeObject _PY_TYPE = {
     PyVarObject_HEAD_INIT(NULL, 0)
         .tp_new = PyType_GenericNew,
     .tp_flags = Py_TPFLAGS_DEFAULT,
     .tp_basicsize = sizeof(_TYPE),
     .tp_name = "pygl.math.Matrix" STRINGIFY(MAT_LEN),
+    .tp_init = (initproc)init,
+    .tp_as_buffer = &(PyBufferProcs){
+        .bf_getbuffer = (getbufferproc)get_buffer,
+    },
     .tp_as_number = &(PyNumberMethods){
         .nb_matrix_multiply = (binaryfunc)matmul,
         .nb_inplace_matrix_multiply = (binaryfunc)imatmul,
@@ -381,13 +566,20 @@ PyTypeObject _PY_TYPE = {
         .mp_subscript = (binaryfunc)subscript,
         .mp_ass_subscript = (objobjargproc)subscript_assign,
     },
-    .tp_init = (initproc)init,
     .tp_methods = (PyMethodDef[]){
         {"identity", (PyCFunction)identity, METH_CLASS | METH_NOARGS, NULL},
         {"transpose", (PyCFunction)transpose, METH_NOARGS, NULL},
         {"transposed", (PyCFunction)transposed, METH_NOARGS, NULL},
         {"inverse", (PyCFunction)inverse, METH_NOARGS, NULL},
         {"inversed", (PyCFunction)inversed, METH_NOARGS, NULL},
+        {"length", (PyCFunction)class_length, METH_CLASS | METH_NOARGS, NULL},
+#if MAT_LEN == 4
+        {"transform", (PyCFunction)transform, METH_VARARGS | METH_CLASS, NULL},
+        {"look", (PyCFunction)look, METH_VARARGS | METH_CLASS, NULL},
+        {"look_at", (PyCFunction)look_at, METH_VARARGS | METH_CLASS, NULL},
+        {"ortho", (PyCFunction)ortho, METH_VARARGS | METH_CLASS | METH_KEYWORDS, NULL},
+        {"perspective", (PyCFunction)perspective, METH_VARARGS | METH_CLASS | METH_KEYWORDS, NULL},
+#endif
         {0},
     },
     .tp_getset = (PyGetSetDef[]){

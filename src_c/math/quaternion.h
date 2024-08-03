@@ -6,7 +6,9 @@
 typedef struct
 {
     PyObject_HEAD
-    versor data;
+        versor data;
 } Quaternion;
 
 extern PyTypeObject pyQuaternionType;
+
+void py_quaternion_copy(void *dst, const Quaternion *quaternion);

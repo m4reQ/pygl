@@ -25,7 +25,9 @@ class ShaderStage:
 TUValue = int | float
 
 class Shader:
-    def __init__(self, stages: list[ShaderStage]) -> None: ...
+    def __init__(self,
+                 stages: list[ShaderStage],
+                 attrib_indices: list[tuple[str, int]] | None = None) -> None: ...
 
     @property
     def id(self) -> int: ...

@@ -1,16 +1,10 @@
-#include <Python.h>
+#include "sync.h"
 #include <structmember.h>
 #include <glad/gl.h>
 #include "utility.h"
 
 #define AUTO_SYNC_TIMEOUT_NS 100
 #define SYNC_SIGNALED(state) (state == GL_ALREADY_SIGNALED || state == GL_CONDITION_SATISFIED)
-
-typedef struct
-{
-    PyObject_HEAD
-        GLsync sync;
-} PySync;
 
 static void wait_indefinitely(GLsync sync)
 {
@@ -74,7 +68,7 @@ static void dealloc(PySync *self)
     Py_TYPE(self)->tp_free(self);
 }
 
-static PyTypeObject pySyncType = {
+PyTypeObject pySyncType = {
     PyVarObject_HEAD_INIT(NULL, 0)
         .tp_new = PyType_GenericNew,
     .tp_flags = Py_TPFLAGS_DEFAULT,
@@ -85,7 +79,8 @@ static PyTypeObject pySyncType = {
         {"set", (PyCFunction)set, METH_NOARGS, NULL},
         {"wait", (PyCFunction)wait, METH_VARARGS | METH_KEYWORDS, NULL},
         {"delete", (PyCFunction) delete, METH_NOARGS, NULL},
-        {0}},
+        {0},
+    },
 };
 
 static PyModuleDef moduleDef = {

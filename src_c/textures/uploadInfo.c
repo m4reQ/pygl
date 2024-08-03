@@ -1,31 +1,26 @@
 #include "uploadInfo.h"
 #include <structmember.h>
 
-static PyObject* py_upload_info_is_compressed_get(PyUploadInfo* self, void* Py_UNUSED(closure))
+static PyObject *py_upload_info_is_compressed_get(PyUploadInfo *self, void *Py_UNUSED(closure))
 {
     return PyBool_FromLong(self->imageSize > 0);
 }
 
-static int py_upload_info_init(PyUploadInfo* self, PyObject* args, PyObject* kwargs)
+static int py_upload_info_init(PyUploadInfo *self, PyObject *args, PyObject *kwargs)
 {
-    static char* kwNames[] = {
+    static char *kwNames[] = {
         "width", "height", "format",
         /* optional */
         "pixel_type", "level", "x_offset", "y_offset", "layer", "image_size", "generate_mipmap", "data_offset",
         NULL};
 
     self->type = GL_UNSIGNED_BYTE;
-    self->level = 0;
-    self->xOffset = 0;
-    self->yOffset = 0;
-    self->layer = 0;
-    self->imageSize = 0;
-    self->dataOffset = 0;
+    self->generateMipmap = true;
     if (!PyArg_ParseTupleAndKeywords(
-        args, kwargs, "iiI|Iiiiiipn", kwNames,
-        &self->width, &self->height, &self->format,
-        &self->type, &self->level, &self->xOffset, &self->yOffset,
-        &self->layer, &self->imageSize, &self->generateMipmap, &self->dataOffset))
+            args, kwargs, "iiI|Iiiiiipn", kwNames,
+            &self->width, &self->height, &self->format,
+            &self->type, &self->level, &self->xOffset, &self->yOffset,
+            &self->layer, &self->imageSize, &self->generateMipmap, &self->dataOffset))
         return -1;
 
     if (self->width < 0 || self->height < 0 || self->layer < 0)
@@ -51,7 +46,7 @@ static int py_upload_info_init(PyUploadInfo* self, PyObject* args, PyObject* kwa
 
 PyTypeObject pyUploadInfoType = {
     PyVarObject_HEAD_INIT(NULL, 0)
-    .tp_flags = Py_TPFLAGS_DEFAULT,
+        .tp_flags = Py_TPFLAGS_DEFAULT,
     .tp_new = PyType_GenericNew,
     .tp_name = "pygl.textures.UploadInfo",
     .tp_basicsize = sizeof(PyUploadInfo),
@@ -71,5 +66,6 @@ PyTypeObject pyUploadInfoType = {
         {0}},
     .tp_getset = (PyGetSetDef[]){
         {"is_compressed", (getter)py_upload_info_is_compressed_get, NULL, NULL, NULL},
-        {0}},
+        {0},
+    },
 };

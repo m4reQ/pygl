@@ -43,7 +43,13 @@ static PyObject *bind_textures(PyObject *Py_UNUSED(cls), PyObject *args, PyObjec
     if (nTextures == 0)
         Py_RETURN_NONE;
 
-    GLuint *textureIds = PyMem_Malloc(sizeof(GLuint) * nTextures);
+    if (nTextures > 32)
+    {
+        PyErr_SetString(PyExc_RuntimeError, "Cannot bind more than 32 textures at once. Use separate bind_textures calls.");
+        return NULL;
+    }
+
+    GLuint textureIds[32];
     for (GLsizei i = 0; i < nTextures; i++)
     {
         PyTexture *tex = (PyTexture *)PyList_GET_ITEM(textures, i);
@@ -52,7 +58,6 @@ static PyObject *bind_textures(PyObject *Py_UNUSED(cls), PyObject *args, PyObjec
 
     glBindTextures(first, nTextures, textureIds);
 
-    PyMem_Free(textureIds);
     Py_RETURN_NONE;
 }
 

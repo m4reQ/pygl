@@ -1,6 +1,6 @@
 import enum
 
-from .buffers import Buffer, MappedBuffer
+from .buffers import Buffer
 
 class AttribType(enum.IntEnum):
     FLOAT: int
@@ -35,7 +35,7 @@ class VertexInput:
     divisor: int = 0
 
     def __init__(self,
-                 buffer: Buffer | MappedBuffer,
+                 buffer: Buffer,
                  stride: int,
                  descriptors: list[VertexDescriptor],
                  offset: int = 0,
@@ -44,7 +44,7 @@ class VertexInput:
 class VertexArray:
     id: int
 
-    def __init__(self, layout: list[VertexInput], element_buffer: Buffer | MappedBuffer | None = None) -> None: ...
+    def __init__(self, layout: list[VertexInput], element_buffer: Buffer | None = None) -> None: ...
 
     def delete(self) -> None: ...
     def bind(self) -> None: ...

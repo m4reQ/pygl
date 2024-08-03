@@ -1,6 +1,13 @@
 import enum
 import typing as t
 
+from .buffers import Buffer
+from .framebuffer import Framebuffer
+from .shaders import Shader
+from .sync import Sync
+from .textures import Texture
+from .vertex_array import VertexArray
+
 class DebugSeverity(enum.IntEnum):
     DEBUG_SEVERITY_NOTIFICATION: int
     DEBUG_SEVERITY_LOW: int
@@ -37,8 +44,10 @@ class ErrorCode(enum.IntEnum):
     STACK_OVERFLOW: int
 
 TDebugCallback = t.Callable[[int, int, int, int, str, t.Any], t.Any]
+TGLObject = Texture | Buffer | Shader | Framebuffer | VertexArray
 
 def enable(callback: TDebugCallback, user_data: t.Any = None) -> None: ...
 def disable() -> None: ...
 def get_error() -> int: ...
 def insert_message(source: DebugSource, type: DebugType, id: int, severity: DebugSeverity, msg: str) -> None: ...
+def set_object_name(obj: TGLObject | Sync, name: str) -> None: ...

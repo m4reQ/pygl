@@ -25,13 +25,6 @@
 
 typedef struct
 {
-    PyObject_HEAD
-        GLuint id;
-    PyObject *resources;
-} PyShader;
-
-typedef struct
-{
     GLint location;
     GLint nameLength;
 } ResourceProto;
@@ -83,7 +76,8 @@ static bool check_link_success(GLuint shader)
 
     PyErr_Format(PyExc_RuntimeError, "Shader link failure:\n%s", infoLog);
     PyMem_Free(infoLog);
-    return -1;
+
+    return false;
 }
 
 static bool read_whole_file(FILE *file, char **outData, size_t *outSize)
@@ -195,10 +189,21 @@ static void retrieve_interface(GLuint shader, GLenum interface, PyObject *storag
     }
 }
 
-static int py_shader_init(PyShader *self, PyObject *args, PyObject *Py_UNUSED(kwargs))
+static bool is_index_valid(PyObject *index)
 {
+    return PyTuple_Check(index) &&
+           PyTuple_GET_SIZE(index) == 2 &&
+           PyUnicode_Check(PyTuple_GET_ITEM(index, 0)) &&
+           PyLong_Check(PyTuple_GET_ITEM(index, 1));
+}
+
+static int py_shader_init(PyShader *self, PyObject *args, PyObject *kwargs)
+{
+    static char *kwNames[] = {"stages", "attrib_indices", NULL};
+
     PyObject *stages;
-    if (!PyArg_ParseTuple(args, "O!", &PyList_Type, &stages))
+    PyObject *attribIndices = NULL;
+    if (!PyArg_ParseTupleAndKeywords(args, kwargs, "O!|O!", kwNames, &PyList_Type, &stages, &PyList_Type, &attribIndices))
         return -1;
 
     self->id = glCreateProgram();
@@ -223,6 +228,25 @@ static int py_shader_init(PyShader *self, PyObject *args, PyObject *Py_UNUSED(kw
 
         glAttachShader(self->id, stage);
         attachedStages[i] = stage;
+    }
+
+    if (attribIndices)
+    {
+        size_t attribIndicesCount = PyList_GET_SIZE(attribIndices);
+        for (size_t i = 0; i < attribIndicesCount; i++)
+        {
+            PyObject *index = PyList_GET_ITEM(attribIndices, i);
+            if (!is_index_valid(index))
+            {
+                PyErr_Format(PyExc_TypeError, "Elements of attrib_indices must be tuples of (str, int), got: %s (at location: %d).", Py_TYPE(index)->tp_name, i);
+                return -1;
+            }
+
+            const char *attribName = PyUnicode_AsUTF8(PyTuple_GET_ITEM(index, 0));
+            GLuint location = PyLong_AsUnsignedLong(PyTuple_GET_ITEM(index, 1));
+
+            glBindAttribLocation(self->id, location, attribName);
+        }
     }
 
     glLinkProgram(self->id);
@@ -328,31 +352,67 @@ static PyObject *py_shader_set_uniform_block_binding(PyShader *self, PyObject *a
 
 static PyObject *py_shader_set_uniform(PyShader *self, PyObject *args)
 {
+    static char *kwNames[] = {"name", "value", "type", NULL};
+
     PyObject *name = NULL;
     PyObject *value = NULL;
-    if (!PyArg_ParseTuple(args, "UO", &name, &value))
+    GLenum type = GL_FLOAT;
+    if (!PyArg_ParseTuple(args, "UO|I", &name, &value, &type))
         return NULL;
 
     GLint uniformLocation = get_uniform_location(self, name);
     if (uniformLocation == -1)
         return NULL; // exception already set
 
-    if (PyLong_Check(value))
+    switch (type)
     {
-        GLint _value = PyLong_AsLong(value);
-        if (_value < 0)
-            glProgramUniform1i(self->id, uniformLocation, _value);
-        else
-            glProgramUniform1ui(self->id, uniformLocation, (GLuint)_value);
+    case GL_FLOAT:
+    {
+        if (!PyFloat_Check(value))
+        {
+            PyErr_Format(PyExc_TypeError, "Expected value to be of type float, got: %s.", Py_TYPE(value)->tp_name);
+            return NULL;
+        }
+
+        glProgramUniform1f(self->id, uniformLocation, (float)PyFloat_AS_DOUBLE(value));
+        break;
     }
-    else if (PyFloat_Check(value))
+
+    case GL_DOUBLE:
     {
-        // find way to allow setting double type uniforms (maybe change API to accept explicit value type?)
-        glProgramUniform1f(self->id, uniformLocation, (GLfloat)PyFloat_AS_DOUBLE(value));
+        if (!PyFloat_Check(value))
+        {
+            PyErr_Format(PyExc_TypeError, "Expected value to be of type float, got: %s.", Py_TYPE(value)->tp_name);
+            return NULL;
+        }
+
+        glProgramUniform1d(self->id, uniformLocation, PyFloat_AS_DOUBLE(value));
+        break;
     }
-    else
+    case GL_INT:
     {
-        PyErr_SetString(PyExc_TypeError, "Expected value to be of type int or float.");
+        if (!PyLong_Check(value))
+        {
+            PyErr_Format(PyExc_TypeError, "Expected value to be of type int, got: %s.", Py_TYPE(value)->tp_name);
+            return NULL;
+        }
+
+        glProgramUniform1i(self->id, uniformLocation, PyLong_AsLong(value));
+        break;
+    }
+    case GL_UNSIGNED_INT:
+    {
+        if (!PyLong_Check(value))
+        {
+            PyErr_Format(PyExc_TypeError, "Expected value to be of type int, got: %s.", Py_TYPE(value)->tp_name);
+            return NULL;
+        }
+
+        glProgramUniform1ui(self->id, uniformLocation, PyLong_AsUnsignedLong(value));
+        break;
+    }
+    default:
+        PyErr_SetString(PyExc_ValueError, "Invalid value type provided.");
         return NULL;
     }
 
@@ -626,7 +686,7 @@ PyTypeObject pyShaderType = {
         {"validate", (PyCFunction)py_shader_validate, METH_NOARGS, NULL},
         {"set_uniform_block_binding", (PyCFunction)py_shader_set_uniform_block_binding, METH_VARARGS, NULL},
         {"get_uniform_block_location", (PyCFunction)py_shader_get_uniform_block_location, METH_O, NULL},
-        {"set_uniform", (PyCFunction)py_shader_set_uniform, METH_VARARGS, NULL},
+        {"set_uniform", (PyCFunction)py_shader_set_uniform, METH_VARARGS | METH_KEYWORDS, NULL},
         {"set_uniform_array", (PyCFunction)py_shader_set_uniform_array, METH_VARARGS | METH_KEYWORDS, NULL},
         {"set_uniform_vec2", (PyCFunction)set_uniform_vec2, METH_VARARGS | METH_KEYWORDS, NULL},
         {"set_uniform_vec3", (PyCFunction)set_uniform_vec3, METH_VARARGS | METH_KEYWORDS, NULL},

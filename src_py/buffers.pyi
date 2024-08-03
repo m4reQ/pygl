@@ -1,7 +1,12 @@
 import enum
+import typing as t
 from collections.abc import Buffer as TSupportsBuffer
 
-class BufferFlags(enum.IntEnum):
+from .math import (Matrix2, Matrix3, Matrix4, Quaternion, Vector2, Vector3,
+                   Vector4)
+from .textures import InternalFormat
+
+class BufferFlags(enum.IntFlag):
     MAP_WRITE_BIT: int
     MAP_READ_BIT: int
     MAP_PERSISTENT_BIT: int
@@ -29,11 +34,31 @@ class BindTarget(enum.IntEnum):
     TRANSFORM_FEEDBACK_BUFFER: int
     UNIFORM_BUFFER: int
 
+TMatrix = Matrix2 | Matrix3 | Matrix4
+TVector = Vector2 | Vector3 | Vector4
+
 class Buffer:
     def __init__(self, size: int, flags: BufferFlags) -> None: ...
 
+    @t.overload
+    def store(self, data: TSupportsBuffer, offset: int | None = None) -> None: ...
+
+    @t.overload
+    def store(self, data: TMatrix, offset: int | None = None) -> None: ...
+
+    @t.overload
+    def store(self, data: TVector, offset: int | None = None) -> None: ...
+
+    @t.overload
+    def store(self, data: Quaternion, offset: int | None = None) -> None: ...
+
+    @t.overload
+    def store(self, data: int, offset: int | None = None) -> None: ...
+
+    @t.overload
+    def store(self, data: float, offset: int | None = None) -> None: ...
+
     def delete(self) -> None: ...
-    def store(self, data: TSupportsBuffer) -> None: ...
     def transfer(self) -> None: ...
     def reset_offset(self) -> None: ...
     def map(self) -> None: ...
@@ -43,6 +68,9 @@ class Buffer:
 
     @property
     def current_offset(self) -> int: ...
+
+    @current_offset.setter
+    def current_offset(self, value: int) -> None: ...
 
     @property
     def id(self) -> int: ...

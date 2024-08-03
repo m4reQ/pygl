@@ -4,21 +4,13 @@
 static bool add_enum(PyObject *module, const EnumDef *enumDef)
 {
     static PyObject *enumConstructor = NULL;
-    if (!enumConstructor)
-    {
-        enumConstructor = PyImport_ImportModule("enum");
-        if (!enumConstructor)
-        {
-            PyErr_SetString(PyExc_ImportError, "Couldn't import enum module.");
-            return false;
-        }
+    static PyObject *flagConstructor = NULL;
 
-        enumConstructor = PyObject_GetAttrString(enumConstructor, "IntEnum");
-        if (!enumConstructor)
-        {
-            PyErr_SetString(PyExc_AttributeError, "Couldn't get IntEnum constructor from enum module.");
-            return false;
-        }
+    if (!enumConstructor || !flagConstructor)
+    {
+        PyObject *enumModule = PyImport_ImportModule("enum");
+        enumConstructor = PyObject_GetAttrString(enumModule, "IntEnum");
+        flagConstructor = PyObject_GetAttrString(enumModule, "IntFlag");
     }
 
     PyObject *valuesDict = PyDict_New();
@@ -26,7 +18,11 @@ static bool add_enum(PyObject *module, const EnumDef *enumDef)
     for (EnumValue *value = enumDef->values; value->name != NULL; value++)
         PyDict_SetItemString(valuesDict, value->name, PyLong_FromUnsignedLong(value->value));
 
-    PyObject *result = PyObject_CallFunction(enumConstructor, "sN", enumDef->enumName, valuesDict);
+    PyObject *result = PyObject_CallFunction(
+        enumDef->isFlag ? flagConstructor : enumConstructor,
+        "sN",
+        enumDef->enumName,
+        valuesDict);
     if (!result)
         return false;
 

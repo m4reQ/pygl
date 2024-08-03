@@ -1,8 +1,6 @@
 #pragma once
-#include <Python.h>
-#include <glad/gl.h>
-#include <stdbool.h>
 #include "attachmentBase.h"
+#include "../gl.h"
 
 typedef struct
 {
@@ -14,12 +12,10 @@ typedef struct
 typedef struct
 {
     PyObject_HEAD
-
-    GLuint id;
+    GL_OBJECT_HEAD;
     GLsizei width, height;
-
-    Attachment* attachments;
-    PyObject* specs;
+    Attachment *attachments;
+    PyObject *specs;
 } PyFramebuffer;
 
 extern PyTypeObject pyFramebufferType;

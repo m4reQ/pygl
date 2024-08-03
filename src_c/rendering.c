@@ -1,7 +1,33 @@
 #include <glad/gl.h>
 #include "module.h"
 
-static PyObject* draw_arrays(PyObject* Py_UNUSED(self), PyObject* args)
+static PyObject *memory_barrier(PyObject *Py_UNUSED(self), PyObject *barriers)
+{
+    if (!PyLong_Check(barriers))
+    {
+        PyErr_Format(PyExc_TypeError, "Expected argument to be of type pygl.rendering.Barrier, got: %s.", Py_TYPE(barriers)->tp_name);
+        return NULL;
+    }
+
+    glMemoryBarrier(PyLong_AsUnsignedLong(barriers));
+
+    Py_RETURN_NONE;
+}
+
+static PyObject *memory_barrier_by_region(PyObject *Py_UNUSED(self), PyObject *barriers)
+{
+    if (!PyLong_Check(barriers))
+    {
+        PyErr_Format(PyExc_TypeError, "Expected argument to be of type pygl.rendering.Barrier, got: %s.", Py_TYPE(barriers)->tp_name);
+        return NULL;
+    }
+
+    glMemoryBarrierByRegion(PyLong_AsUnsignedLong(barriers));
+
+    Py_RETURN_NONE;
+}
+
+static PyObject *draw_arrays(PyObject *Py_UNUSED(self), PyObject *args)
 {
     GLenum mode = 0;
     GLint first = 0;
@@ -14,7 +40,7 @@ static PyObject* draw_arrays(PyObject* Py_UNUSED(self), PyObject* args)
     Py_RETURN_NONE;
 }
 
-static PyObject* draw_arrays_instanced(PyObject* Py_UNUSED(self), PyObject* args)
+static PyObject *draw_arrays_instanced(PyObject *Py_UNUSED(self), PyObject *args)
 {
     GLenum mode = 0;
     GLint first = 0;
@@ -27,7 +53,7 @@ static PyObject* draw_arrays_instanced(PyObject* Py_UNUSED(self), PyObject* args
     Py_RETURN_NONE;
 }
 
-static PyObject* draw_arrays_instanced_base_instance(PyObject* Py_UNUSED(self), PyObject* args)
+static PyObject *draw_arrays_instanced_base_instance(PyObject *Py_UNUSED(self), PyObject *args)
 {
     GLenum mode = 0;
     GLint first = 0;
@@ -41,7 +67,7 @@ static PyObject* draw_arrays_instanced_base_instance(PyObject* Py_UNUSED(self), 
     Py_RETURN_NONE;
 }
 
-static PyObject* draw_elements(PyObject* Py_UNUSED(self), PyObject* args)
+static PyObject *draw_elements(PyObject *Py_UNUSED(self), PyObject *args)
 {
     GLenum mode = 0, type = 0;
     GLsizei count = 0;
@@ -53,7 +79,7 @@ static PyObject* draw_elements(PyObject* Py_UNUSED(self), PyObject* args)
     Py_RETURN_NONE;
 }
 
-static PyObject* draw_elements_instanced(PyObject* Py_UNUSED(self), PyObject* args)
+static PyObject *draw_elements_instanced(PyObject *Py_UNUSED(self), PyObject *args)
 {
     GLenum mode = 0, type = 0;
     GLsizei count = 0, instanceCount = 0;
@@ -65,7 +91,7 @@ static PyObject* draw_elements_instanced(PyObject* Py_UNUSED(self), PyObject* ar
     Py_RETURN_NONE;
 }
 
-static PyObject* draw_elements_instanced_base_instance(PyObject* Py_UNUSED(self), PyObject* args)
+static PyObject *draw_elements_instanced_base_instance(PyObject *Py_UNUSED(self), PyObject *args)
 {
     GLenum mode = 0, type = 0;
     GLsizei count = 0, instanceCount = 0;
@@ -78,7 +104,7 @@ static PyObject* draw_elements_instanced_base_instance(PyObject* Py_UNUSED(self)
     Py_RETURN_NONE;
 }
 
-static PyObject* draw_elements_instanced_base_vertex(PyObject* Py_UNUSED(self), PyObject* args)
+static PyObject *draw_elements_instanced_base_vertex(PyObject *Py_UNUSED(self), PyObject *args)
 {
     GLenum mode = 0, type = 0;
     GLsizei count = 0, instanceCount = 0;
@@ -91,7 +117,7 @@ static PyObject* draw_elements_instanced_base_vertex(PyObject* Py_UNUSED(self), 
     Py_RETURN_NONE;
 }
 
-static PyObject* draw_elements_instanced_base_vertex_base_instance(PyObject* Py_UNUSED(self), PyObject* args)
+static PyObject *draw_elements_instanced_base_vertex_base_instance(PyObject *Py_UNUSED(self), PyObject *args)
 {
     GLenum mode = 0, type = 0;
     GLsizei count = 0, instanceCount = 0;
@@ -112,7 +138,7 @@ static PyObject* draw_elements_instanced_base_vertex_base_instance(PyObject* Py_
     Py_RETURN_NONE;
 }
 
-static PyObject* draw_arrays_indirect(PyObject* Py_UNUSED(self), PyObject* mode)
+static PyObject *draw_arrays_indirect(PyObject *Py_UNUSED(self), PyObject *mode)
 {
     if (!PyLong_Check(mode))
     {
@@ -125,7 +151,7 @@ static PyObject* draw_arrays_indirect(PyObject* Py_UNUSED(self), PyObject* mode)
     Py_RETURN_NONE;
 }
 
-static PyObject* draw_elements_indirect(PyObject* Py_UNUSED(self), PyObject* args)
+static PyObject *draw_elements_indirect(PyObject *Py_UNUSED(self), PyObject *args)
 {
     GLenum mode = 0, type = 0;
     if (!PyArg_ParseTuple(args, "II", &mode, &type))
@@ -136,7 +162,7 @@ static PyObject* draw_elements_indirect(PyObject* Py_UNUSED(self), PyObject* arg
     Py_RETURN_NONE;
 }
 
-static PyObject* multi_draw_arrays_indirect(PyObject* Py_UNUSED(self), PyObject* args)
+static PyObject *multi_draw_arrays_indirect(PyObject *Py_UNUSED(self), PyObject *args)
 {
     GLenum mode = 0;
     GLsizei drawCount = 0, stride = 0;
@@ -148,7 +174,7 @@ static PyObject* multi_draw_arrays_indirect(PyObject* Py_UNUSED(self), PyObject*
     Py_RETURN_NONE;
 }
 
-static PyObject* multi_draw_elements_indirect(PyObject* Py_UNUSED(self), PyObject* args)
+static PyObject *multi_draw_elements_indirect(PyObject *Py_UNUSED(self), PyObject *args)
 {
     GLenum mode = 0, type = 0;
     GLsizei drawCount = 0, stride = 0;
@@ -160,7 +186,7 @@ static PyObject* multi_draw_elements_indirect(PyObject* Py_UNUSED(self), PyObjec
     Py_RETURN_NONE;
 }
 
-static PyObject* clear(PyObject* Py_UNUSED(self), PyObject* mask)
+static PyObject *clear(PyObject *Py_UNUSED(self), PyObject *mask)
 {
     if (!PyLong_Check(mask))
     {
@@ -175,7 +201,7 @@ static PyObject* clear(PyObject* Py_UNUSED(self), PyObject* mask)
 
 static EnumDef drawModeEnum = {
     .enumName = "DrawMode",
-    .values = (EnumValue[]) {
+    .values = (EnumValue[]){
         {"POINTS", GL_POINTS},
         {"LINE_STRIP", GL_LINE_STRIP},
         {"LINE_LOOP", GL_LINE_LOOP},
@@ -193,7 +219,7 @@ static EnumDef drawModeEnum = {
 
 static EnumDef elementsTypeEnum = {
     .enumName = "ElementsType",
-    .values = (EnumValue[]) {
+    .values = (EnumValue[]){
         {"UNSIGNED_BYTE", GL_UNSIGNED_BYTE},
         {"UNSIGNED_SHORT", GL_UNSIGNED_SHORT},
         {"UNSIGNED_INT", GL_UNSIGNED_INT},
@@ -202,11 +228,36 @@ static EnumDef elementsTypeEnum = {
 
 static EnumDef clearMaskEnum = {
     .enumName = "ClearMask",
-    .values = (EnumValue[]) {
+    .values = (EnumValue[]){
         {"COLOR_BUFFER_BIT", GL_COLOR_BUFFER_BIT},
         {"DEPTH_BUFFER_BIT", GL_DEPTH_BUFFER_BIT},
         {"STENCIL_BUFFER_BIT", GL_STENCIL_BUFFER_BIT},
-        {0}},
+        {0},
+    },
+    .isFlag = true,
+};
+
+static EnumDef barrierEnum = {
+    .enumName = "Barrier",
+    .values = (EnumValue[]){
+        {"VERTEX_ATTRIB_ARRAY_BARRIER_BIT", GL_VERTEX_ATTRIB_ARRAY_BARRIER_BIT},
+        {"ELEMENT_ARRAY_BARRIER_BIT", GL_ELEMENT_ARRAY_BARRIER_BIT},
+        {"UNIFORM_BARRIER_BIT", GL_UNIFORM_BARRIER_BIT},
+        {"TEXTURE_FETCH_BARRIER_BIT", GL_TEXTURE_FETCH_BARRIER_BIT},
+        {"SHADER_IMAGE_ACCESS_BARRIER_BIT", GL_SHADER_IMAGE_ACCESS_BARRIER_BIT},
+        {"COMMAND_BARRIER_BIT", GL_COMMAND_BARRIER_BIT},
+        {"PIXEL_BUFFER_BARRIER_BIT", GL_PIXEL_BUFFER_BARRIER_BIT},
+        {"TEXTURE_UPDATE_BARRIER_BIT", GL_TEXTURE_UPDATE_BARRIER_BIT},
+        {"BUFFER_UPDATE_BARRIER_BIT", GL_BUFFER_UPDATE_BARRIER_BIT},
+        {"CLIENT_MAPPED_BUFFER_BARRIER_BIT", GL_CLIENT_MAPPED_BUFFER_BARRIER_BIT},
+        {"FRAMEBUFFER_BARRIER_BIT", GL_FRAMEBUFFER_BARRIER_BIT},
+        {"TRANSFORM_FEEDBACK_BARRIER_BIT", GL_TRANSFORM_FEEDBACK_BARRIER_BIT},
+        {"ATOMIC_COUNTER_BARRIER_BIT", GL_ATOMIC_COUNTER_BARRIER_BIT},
+        {"SHADER_STORAGE_BARRIER_BIT", GL_SHADER_STORAGE_BARRIER_BIT},
+        {"QUERY_BUFFER_BARRIER_BIT", GL_QUERY_BUFFER_BARRIER_BIT},
+        {"ALL_BARRIER_BITS", GL_ALL_BARRIER_BITS},
+        {0},
+    },
 };
 
 static ModuleInfo modInfo = {
@@ -228,12 +279,12 @@ static ModuleInfo modInfo = {
             {"multi_draw_arrays_indirect", multi_draw_arrays_indirect, METH_VARARGS, NULL},
             {"multi_draw_elements_indirect", multi_draw_elements_indirect, METH_VARARGS, NULL},
             {"clear", clear, METH_O, NULL},
-            {0}}},
-    .enums = (EnumDef*[]) {
-        &drawModeEnum,
-        &clearMaskEnum,
-        &elementsTypeEnum,
-        NULL},
+            {"memory_barrier", memory_barrier, METH_O, NULL},
+            {"memory_barrier_by_region", memory_barrier_by_region, METH_O, NULL},
+            {0},
+        },
+    },
+    .enums = (EnumDef *[]){&drawModeEnum, &clearMaskEnum, &elementsTypeEnum, NULL},
 };
 
 PyMODINIT_FUNC PyInit_rendering()

@@ -3,6 +3,11 @@
 
 #define NEW_QUAT(var) Quaternion *var = PyObject_New(Quaternion, &pyQuaternionType)
 
+void py_quaternion_copy(void *dst, const Quaternion *quaternion)
+{
+    glm_quat_copy(quaternion, dst);
+}
+
 static int init(Quaternion *self, PyObject *args, PyObject *Py_UNUSED(kwargs))
 {
     if (!PyArg_ParseTuple(args, "ffff", &self->data[0], &self->data[1], &self->data[2], &self->data[3]))

@@ -1,4 +1,5 @@
 #pragma once
+#include <stdbool.h>
 #include <Python.h>
 
 typedef struct
@@ -11,6 +12,7 @@ typedef struct
 {
     const char *enumName;
     EnumValue *values;
+    bool isFlag;
 } EnumDef;
 
 typedef struct

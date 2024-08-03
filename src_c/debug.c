@@ -1,7 +1,14 @@
-#include <Python.h>
-#include <glad/gl.h>
 #include "utility.h"
 #include "module.h"
+#include "gl.h"
+#include "sync.h"
+#include "vertexArray/vertexArray.h"
+#include "shaders/shader.h"
+#include "textures/texture2D.h"
+#include "textures/texture2DArray.h"
+#include "framebuffer/framebuffer.h"
+#include "buffers/buffer.h"
+#include "buffers/textureBuffer.h"
 
 typedef struct
 {
@@ -107,6 +114,70 @@ static PyObject *py_debug_insert_message(PyObject *Py_UNUSED(self), PyObject *ar
     Py_RETURN_NONE;
 }
 
+// FIXME Avoid having to call PyType_Ready just to check if object is of that type. Maybe just
+// checking for ob_type == required type would be enough?
+static void ready_checked_types(void)
+{
+    PyType_Ready(&pyFramebufferType);
+    PyType_Ready(&pyShaderType);
+    PyType_Ready(&pyBufferType);
+    PyType_Ready(&pyTextureBufferType);
+    PyType_Ready(&pySyncType);
+    PyType_Ready(&pyTexture2DArrayType);
+    PyType_Ready(&pyTexture2DType);
+    PyType_Ready(&pyVertexArrayType);
+}
+
+static GLenum get_gl_object_type(PyObject *object, GLenum *outEnum)
+{
+    if (PyObject_IsInstance(object, (PyObject *)&pyTexture2DType) || PyObject_IsInstance(object, (PyObject *)&pyTexture2DArrayType))
+        *outEnum = GL_TEXTURE;
+    else if (PyObject_IsInstance(object, (PyObject *)&pyBufferType))
+        *outEnum = GL_BUFFER;
+    else if (PyObject_IsInstance(object, (PyObject *)&pyTextureBufferType))
+        *outEnum = GL_TEXTURE_BUFFER;
+    else if (PyObject_IsInstance(object, (PyObject *)&pyShaderType))
+        *outEnum = GL_PROGRAM;
+    else if (PyObject_IsInstance(object, (PyObject *)&pyFramebufferType))
+        *outEnum = GL_FRAMEBUFFER;
+    else if (PyObject_IsInstance(object, (PyObject *)&pyVertexArrayType))
+        *outEnum = GL_VERTEX_ARRAY;
+    else
+        return false;
+
+    return true;
+}
+
+static PyObject *py_debug_set_object_name(PyObject *Py_UNUSED(self), PyObject *args)
+{
+    PyObject *obj = NULL;
+    const char *name = NULL;
+    if (!PyArg_ParseTuple(args, "Os", &obj, &name))
+        return NULL;
+
+    ready_checked_types();
+
+    if (PyObject_IsInstance(obj, (PyObject *)&pySyncType))
+    {
+        GLsync sync = ((PySync *)obj)->sync;
+        if (sync != NULL)
+            glObjectPtrLabel(sync, -1, name);
+
+        Py_RETURN_NONE;
+    }
+
+    GLenum objType = 0;
+    if (!get_gl_object_type(obj, &objType))
+    {
+        PyErr_Format(PyExc_TypeError, "Function expected argument 1 to be a GL object, got: %s.", Py_TYPE(obj)->tp_name);
+        return NULL;
+    }
+
+    glObjectLabel(objType, ((GLObject *)obj)->id, -1, name);
+
+    Py_RETURN_NONE;
+}
+
 static void py_debug_free(void *Py_UNUSED(self))
 {
     free_callback_data();
@@ -177,6 +248,7 @@ static ModuleInfo modInfo = {
             {"enable", (PyCFunction)py_debug_enable, METH_VARARGS | METH_KEYWORDS, NULL},
             {"disable", py_debug_disable, METH_NOARGS, NULL},
             {"get_error", py_debug_get_error, METH_NOARGS, NULL},
+            {"set_object_name", py_debug_set_object_name, METH_VARARGS, NULL},
             {"insert_message", (PyCFunction)py_debug_insert_message, METH_VARARGS, NULL},
             {0},
         },
@@ -192,5 +264,7 @@ static ModuleInfo modInfo = {
 
 PyMODINIT_FUNC PyInit_debug()
 {
+    // FIXME Debug module function set_object_name requires all gl types to be ready, thus importing all
+    // modules containing them. We could maybe add  before we check
     return module_create_from_info(&modInfo);
 }

@@ -8,7 +8,7 @@ static int py_vertexinput_init(PyVertexInput *self, PyObject *args, PyObject *kw
 {
     static char *kwNames[] = {"buffer", "stride", "descriptors", "offset", "divisor", NULL};
 
-    PyObject *buffer = NULL; // not typechecked!
+    PyObject *buffer = NULL; // TODO Add typecheck to prevent crashes when invalid type is used
     PyObject *descriptors = NULL;
     if (!PyArg_ParseTupleAndKeywords(
             args, kwargs, "OiO!|LI", kwNames,

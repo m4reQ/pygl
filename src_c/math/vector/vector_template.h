@@ -11,7 +11,9 @@
 #define _PY_TYPE CAT(CAT(pyVector, VEC_LEN), Type)
 #define _GLM_TYPE CAT(vec, VEC_LEN)
 #define _SELF _TYPE *self
-#define _NEW(var) _TYPE *var = PyObject_New(_TYPE, &_PY_TYPE)
+#define _NEW(var)                                \
+    _TYPE *var = PyObject_New(_TYPE, &_PY_TYPE); \
+    var->length = VEC_LEN
 #define _GLM_INVOKE(func, ...) CAT(CAT(CAT(glm_vec, VEC_LEN), _), func)(__VA_ARGS__)
 #define _VEC_CHECK(o)                                                                                                                              \
     do                                                                                                                                             \
@@ -71,9 +73,11 @@ static int vec_init(_SELF, PyObject *args, PyObject *_kwargs)
     }
     else
     {
-        PyErr_Format(PyExc_TypeError, "Expected argument to be either signel float value or %d float values.", VEC_LEN);
+        PyErr_Format(PyExc_TypeError, "Expected argument to be either single float value or %d float values.", VEC_LEN);
         return -1;
     }
+
+    self->length = VEC_LEN;
 
     return 0;
 }
@@ -86,7 +90,7 @@ static PyObject *vec_normalize(_SELF, PyObject *_args)
 
 static PyObject *vec_normalized(_SELF, PyObject *_args)
 {
-    _TYPE *result = PyObject_New(_TYPE, &_PY_TYPE);
+    _NEW(result);
     _GLM_INVOKE(normalize_to, self->data, result->data);
 
     return (PyObject *)result;
@@ -107,7 +111,7 @@ static PyObject *vec_cross(_SELF, _TYPE *other)
     float result = _GLM_INVOKE(cross, self->data, other->data);
     return PyFloat_FromDouble((double)result);
 #else
-    _TYPE *result = PyObject_New(_TYPE, &_PY_TYPE);
+    _NEW(result);
     _GLM_INVOKE(cross, self->data, other->data, result->data);
 
     return (PyObject *)result;
@@ -134,7 +138,7 @@ static PyObject *vec_interpolate(_SELF, PyObject *args)
         return NULL;
     }
 
-    _TYPE *result = PyObject_New(_TYPE, &_PY_TYPE);
+    _NEW(result);
     _GLM_INVOKE(lerp, self->data, other->data, factor, result->data);
 
     return (PyObject *)result;
@@ -146,6 +150,8 @@ static PyObject *vec_one(PyTypeObject *cls, PyObject *_args)
     for (size_t i = 0; i < VEC_LEN; i++)
         result->data[i] = 1.0f;
 
+    result->length = VEC_LEN;
+
     return (PyObject *)result;
 }
 
@@ -153,6 +159,8 @@ static PyObject *vec_zero(PyTypeObject *cls, PyObject *_args)
 {
     _TYPE *result = PyObject_New(_TYPE, cls);
     memset(result->data, 0, sizeof(_GLM_TYPE));
+
+    result->length = VEC_LEN;
 
     return (PyObject *)result;
 }
@@ -184,58 +192,79 @@ static int vec_assign_item(_SELF, Py_ssize_t index, PyObject *value)
 static PyObject *vec_add(_SELF, PyObject *other)
 {
     _VEC_OP_CHECK_TYPE(other);
-
-    _TYPE *res = PyObject_New(_TYPE, &_PY_TYPE);
+    _NEW(res);
     _GLM_INVOKE(add, self->data, ((_TYPE *)other)->data, res->data);
 
     return (PyObject *)res;
 }
 
+static _TYPE *vec_iadd(_SELF, _TYPE *other)
+{
+    _VEC_OP_CHECK_TYPE(other);
+    _GLM_INVOKE(add, self->data, other->data, self->data);
+
+    return Py_NewRef(self);
+}
+
 static PyObject *vec_sub(_SELF, PyObject *other)
 {
     _VEC_OP_CHECK_TYPE(other);
-
-    _TYPE *res = PyObject_New(_TYPE, &_PY_TYPE);
+    _NEW(res);
     _GLM_INVOKE(sub, self->data, ((_TYPE *)other)->data, res->data);
 
     return (PyObject *)res;
 }
 
-static PyObject *vec_iadd(_SELF, PyObject *other)
-{
-    _VEC_OP_CHECK_TYPE(other);
-
-    _GLM_INVOKE(add, self->data, ((_TYPE *)other)->data, self->data);
-
-    return (PyObject *)self;
-}
-
-static PyObject *vec_isub(_SELF, PyObject *other)
+static _TYPE *vec_isub(_SELF, PyObject *other)
 {
     _VEC_OP_CHECK_TYPE(other);
 
     _GLM_INVOKE(sub, self->data, ((_TYPE *)other)->data, self->data);
 
-    return (PyObject *)self;
+    return Py_NewRef(self);
 }
 
 static PyObject *vec_mult(_SELF, PyObject *other)
 {
-    _VEC_OP_CHECK_TYPE(other);
+    if (PyFloat_Check(other))
+    {
+        _NEW(res);
+        _GLM_INVOKE(scale, self->data, (float)PyFloat_AS_DOUBLE(other), res->data);
 
-    _NEW(res);
-    _GLM_INVOKE(mul, self->data, ((_TYPE *)other)->data, res->data);
+        return res;
+    }
+    else if (PyObject_IsInstance(other, &_PY_TYPE))
+    {
+        _NEW(res);
+        _GLM_INVOKE(mul, self->data, ((_TYPE *)other)->data, res->data);
 
-    return (PyObject *)res;
+        return res;
+    }
+
+    Py_RETURN_NOTIMPLEMENTED;
 }
 
-static PyObject *vec_imult(_SELF, PyObject *other)
+static _TYPE *vec_imult(_SELF, PyObject *other)
 {
-    _VEC_OP_CHECK_TYPE(other);
+    if (PyFloat_Check(other))
+    {
+        _GLM_INVOKE(scale, self->data, (float)PyFloat_AS_DOUBLE(other), self->data);
+        return Py_NewRef(self);
+    }
+    else if (PyObject_IsInstance(other, &_PY_TYPE))
+    {
+        _GLM_INVOKE(mul, self->data, ((_TYPE *)other)->data, self->data);
+        return Py_NewRef(self);
+    }
 
-    _GLM_INVOKE(mul, self->data, ((_TYPE *)other)->data, self->data);
+    Py_RETURN_NOTIMPLEMENTED;
+}
 
-    return (PyObject *)self;
+static _TYPE *vec_negative(_SELF, _TYPE *other)
+{
+    _NEW(res);
+    _GLM_INVOKE(negate_to, self->data, res->data);
+    return res;
 }
 
 static PyObject *vec_repr(_SELF)
@@ -329,6 +358,28 @@ static PyObject *vec_richcompare(_SELF, PyObject *other, int op)
     return result ? Py_NewRef(Py_True) : Py_NewRef(Py_False);
 }
 
+static int vec_get_buffer(_SELF, Py_buffer *buffer, int flags)
+{
+    *buffer = (Py_buffer){
+        .obj = Py_NewRef(self),
+        .buf = self->data,
+        .len = VEC_LEN * sizeof(float),
+        .itemsize = sizeof(float),
+        .ndim = 1,
+        .readonly = !(flags & PyBUF_WRITABLE == PyBUF_WRITABLE),
+        .format = (flags & PyBUF_FORMAT == PyBUF_FORMAT) ? "f" : NULL,
+        .shape = (Py_ssize_t[]){VEC_LEN},
+        .strides = (Py_ssize_t[]){sizeof(float)},
+    };
+
+    return 0;
+}
+
+static PyObject *class_length(PyTypeObject *cls, PyObject *Py_UNUSED(args))
+{
+    return PyLong_FromLong(VEC_LEN);
+}
+
 PyTypeObject _PY_TYPE = {
     PyVarObject_HEAD_INIT(NULL, 0)
         .tp_new = PyType_GenericNew,
@@ -371,6 +422,7 @@ PyTypeObject _PY_TYPE = {
         {"interpolate", (PyCFunction)vec_interpolate, METH_VARARGS, NULL},
         {"zero", (PyCFunction)vec_zero, METH_CLASS | METH_NOARGS, NULL},
         {"one", (PyCFunction)vec_one, METH_CLASS | METH_NOARGS, NULL},
+        {"length", (PyCFunction)class_length, METH_CLASS | METH_NOARGS, NULL},
         {0},
     },
     .tp_as_sequence = &(PySequenceMethods){
@@ -380,10 +432,14 @@ PyTypeObject _PY_TYPE = {
     },
     .tp_as_number = &(PyNumberMethods){
         .nb_add = (binaryfunc)vec_add,
-        .nb_subtract = (binaryfunc)vec_sub,
         .nb_inplace_add = (binaryfunc)vec_iadd,
+        .nb_subtract = (binaryfunc)vec_sub,
         .nb_inplace_subtract = (binaryfunc)vec_isub,
         .nb_multiply = (binaryfunc)vec_mult,
         .nb_inplace_multiply = (binaryfunc)vec_imult,
+        .nb_negative = (unaryfunc)vec_negative,
+    },
+    .tp_as_buffer = &(PyBufferProcs){
+        .bf_getbuffer = (getbufferproc)vec_get_buffer,
     },
 };

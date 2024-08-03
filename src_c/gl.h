@@ -1,13 +1,11 @@
 #pragma once
 #include <Python.h>
-#include <structmember.h>
 #include <glad/gl.h>
-#include "../gl.h"
+
+#define GL_OBJECT_HEAD GLuint id
 
 typedef struct
 {
     PyObject_HEAD
     GL_OBJECT_HEAD;
-} PyVertexArray;
-
-extern PyTypeObject pyVertexArrayType;
+} GLObject;

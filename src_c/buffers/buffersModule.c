@@ -3,27 +3,30 @@
 
 static EnumDef bufferFlagsEnum = {
     .enumName = "BufferFlags",
-    .values = (EnumValue[]) {
+    .values = (EnumValue[]){
         {"MAP_WRITE_BIT", GL_MAP_WRITE_BIT},
         {"MAP_READ_BIT", GL_MAP_READ_BIT},
         {"MAP_PERSISTENT_BIT", GL_MAP_PERSISTENT_BIT | GL_MAP_COHERENT_BIT},
         {"DYNAMIC_STORAGE_BIT", GL_DYNAMIC_STORAGE_BIT},
-        {0}},
+        {0},
+    },
+    .isFlag = true,
 };
 
 static EnumDef bufferBaseEnum = {
     .enumName = "BufferBaseTarget",
-    .values = (EnumValue[]) {
+    .values = (EnumValue[]){
         {"ATOMIC_COUNTER_BUFFER", GL_ATOMIC_COUNTER_BUFFER},
         {"TRANSFORM_FEEDBACK_BUFFER", GL_TRANSFORM_FEEDBACK_BUFFER},
         {"UNIFORM_BUFFER", GL_UNIFORM_BUFFER},
         {"SHADER_STORAGE_BUFFER", GL_SHADER_STORAGE_BUFFER},
-        {0}},
+        {0},
+    },
 };
 
 static EnumDef bindTargetEnum = {
     .enumName = "BindTarget",
-    .values = (EnumValue[]) {
+    .values = (EnumValue[]){
         {"ARRAY_BUFFER", GL_ARRAY_BUFFER},
         {"ATOMIC_COUNTER_BUFFER", GL_ATOMIC_COUNTER_BUFFER},
         {"COPY_READ_BUFFER", GL_COPY_READ_BUFFER},
@@ -38,7 +41,8 @@ static EnumDef bindTargetEnum = {
         {"TEXTURE_BUFFER", GL_TEXTURE_BUFFER},
         {"TRANSFORM_FEEDBACK_BUFFER", GL_TRANSFORM_FEEDBACK_BUFFER},
         {"UNIFORM_BUFFER", GL_UNIFORM_BUFFER},
-        {0}},
+        {0},
+    },
 };
 
 static ModuleInfo modInfo = {
@@ -46,14 +50,16 @@ static ModuleInfo modInfo = {
         PyModuleDef_HEAD_INIT,
         .m_name = "pygl.buffers",
         .m_size = -1},
-    .enums = (EnumDef*[]){
+    .enums = (EnumDef *[]){
         &bindTargetEnum,
         &bufferBaseEnum,
         &bufferFlagsEnum,
-        NULL},
-    .types = (PyTypeObject*[]) {
+        NULL,
+    },
+    .types = (PyTypeObject *[]){
         &pyBufferType,
-        NULL},
+        NULL,
+    },
 };
 
 PyMODINIT_FUNC PyInit_buffers(void)

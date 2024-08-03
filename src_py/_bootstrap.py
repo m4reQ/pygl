@@ -48,7 +48,7 @@ class CombinedExtensionFinder(abc.MetaPathFinder):
 
         spec = machinery.ModuleSpec(
             origin=origin,
-            name=target_mod_name,
+            name=fullname,
             loader=machinery.ExtensionFileLoader(target_mod_name, path[0]))
         spec.has_location = True
 
