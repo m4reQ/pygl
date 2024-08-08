@@ -168,9 +168,43 @@ static void py_vertex_array_dealloc(PyVertexArray *self)
     Py_TYPE(self)->tp_free(self);
 }
 
+static PyObject *bind_vertex_buffer(PyVertexArray *self, PyObject *args, PyObject *kwargs)
+{
+    static char *kwNames[] = {"buffer", "index", "stride", "offset", "divisor", NULL};
+
+    PyBuffer *buffer;
+    GLuint index;
+    GLsizei stride;
+    GLintptr offset = 0;
+    GLuint divisor = 0;
+
+    if (!PyArg_ParseTupleAndKeywords(args, kwargs, "O!Ii|nI", kwNames, &pyBufferType, &buffer, &index, &stride, &offset, &divisor))
+        return NULL;
+
+    glVertexArrayVertexBuffer(self->id, index, buffer->id, offset, stride);
+    glVertexArrayBindingDivisor(self->id, index, divisor);
+
+    Py_RETURN_NONE;
+}
+
+static PyObject *bind_index_buffer(PyVertexArray *self, PyBuffer *buffer)
+{
+    if (!PyObject_IsInstance(buffer, &pyBufferType))
+    {
+        PyErr_Format(PyExc_TypeError, "Expected argument to be of type pygl.buffers.Buffer, got: %s.", Py_TYPE(buffer)->tp_name);
+        return NULL;
+    }
+
+    glVertexArrayElementBuffer(self->id, buffer->id);
+
+    Py_RETURN_NONE;
+}
+
 static PyMethodDef pyVertexArrayMethods[] = {
     {"delete", (PyCFunction)py_vertex_array_delete, METH_NOARGS, NULL},
     {"bind", (PyCFunction)py_vertex_array_bind, METH_NOARGS, NULL},
+    {"bind_vertex_buffer", (PyCFunction)bind_vertex_buffer, METH_VARARGS | METH_KEYWORDS, NULL},
+    {"bind_index_buffer", (PyCFunction)bind_index_buffer, METH_O, NULL},
     {0},
 };
 

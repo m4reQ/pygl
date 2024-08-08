@@ -1,13 +1,10 @@
 #include "textureSpec.h"
-#include "texture2D.h"
-#include "texture2DArray.h"
 #include "uploadInfo.h"
-#include "textureBase.h"
+#include "texture.h"
 #include "../module.h"
 #include "../utility.h"
-#include <glad/gl.h>
 
-static PyObject *_set_pixel_storei(GLenum param, PyObject *value)
+static PyObject *set_pixel_storei(GLenum param, PyObject *value)
 {
     THROW_IF(
         !PyLong_Check(value),
@@ -22,12 +19,12 @@ static PyObject *_set_pixel_storei(GLenum param, PyObject *value)
 
 static PyObject *set_pixel_pack_alignment(PyObject *Py_UNUSED(self), PyObject *alignment)
 {
-    return _set_pixel_storei(GL_PACK_ALIGNMENT, alignment);
+    return set_pixel_storei(GL_PACK_ALIGNMENT, alignment);
 }
 
 static PyObject *set_pixel_unpack_alignment(PyObject *Py_UNUSED(self), PyObject *alignment)
 {
-    return _set_pixel_storei(GL_PACK_ALIGNMENT, alignment);
+    return set_pixel_storei(GL_PACK_ALIGNMENT, alignment);
 }
 
 static PyObject *bind_textures(PyObject *Py_UNUSED(cls), PyObject *args, PyObject *kwargs)
@@ -66,7 +63,8 @@ static EnumDef magFilterEnum = {
     .values = (EnumValue[]){
         {"NEAREST", GL_NEAREST},
         {"LINEAR", GL_LINEAR},
-        {0}},
+        {0},
+    },
 };
 
 static EnumDef minFilterEnum = {
@@ -78,7 +76,8 @@ static EnumDef minFilterEnum = {
         {"LINEAR_MIPMAP_NEAREST", GL_LINEAR_MIPMAP_NEAREST},
         {"NEAREST_MIPMAP_LINEAR", GL_NEAREST_MIPMAP_LINEAR},
         {"LINEAR_MIPMAP_LINEAR", GL_LINEAR_MIPMAP_LINEAR},
-        {0}},
+        {0},
+    },
 };
 
 static EnumDef textureParameterEnum = {
@@ -103,7 +102,8 @@ static EnumDef textureParameterEnum = {
         {"TEXTURE_WRAP_S", GL_TEXTURE_WRAP_S},
         {"TEXTURE_WRAP_T", GL_TEXTURE_WRAP_T},
         {"TEXTURE_WRAP_R", GL_TEXTURE_WRAP_R},
-        {0}},
+        {0},
+    },
 };
 
 static EnumDef wrapModeEnum = {
@@ -114,7 +114,8 @@ static EnumDef wrapModeEnum = {
         {"MIRROR_CLAMP_TO_EDGE", GL_MIRROR_CLAMP_TO_EDGE},
         {"REPEAT", GL_REPEAT},
         {"MIRRORED_REPEAT", GL_MIRRORED_REPEAT},
-        {0}},
+        {0},
+    },
 };
 
 static EnumDef internalFormatEnum = {
@@ -181,7 +182,8 @@ static EnumDef internalFormatEnum = {
         {"RGBA16UI", GL_RGBA16UI},
         {"RGBA32I", GL_RGBA32I},
         {"RGBA32UI", GL_RGBA32UI},
-        {0}},
+        {0},
+    },
 };
 
 static EnumDef pixelFormatEnum = {
@@ -195,7 +197,8 @@ static EnumDef pixelFormatEnum = {
         {"BGRA", GL_BGRA},
         {"DEPTH_COMPONENT", GL_DEPTH_COMPONENT},
         {"STENCIL_INDEX", GL_STENCIL_INDEX},
-        {0}},
+        {0},
+    },
 };
 
 static EnumDef pixelTypeEnum = {
@@ -220,7 +223,8 @@ static EnumDef pixelTypeEnum = {
         {"UNSIGNED_INT_8_8_8_8_REV", GL_UNSIGNED_INT_8_8_8_8_REV},
         {"UNSIGNED_INT_10_10_10_2", GL_UNSIGNED_INT_10_10_10_2},
         {"UNSIGNED_INT_2_10_10_10_REV", GL_UNSIGNED_INT_2_10_10_10_REV},
-        {0}},
+        {0},
+    },
 };
 
 static EnumDef compressedInternalFormatEnum = {
@@ -230,7 +234,26 @@ static EnumDef compressedInternalFormatEnum = {
         {"COMPRESSED_RGBA_S3TC_DXT1_EXT", GL_COMPRESSED_RGBA_S3TC_DXT1_EXT},
         {"COMPRESSED_RGBA_S3TC_DXT3_EXT", GL_COMPRESSED_RGBA_S3TC_DXT3_EXT},
         {"COMPRESSED_RGBA_S3TC_DXT5_EXT", GL_COMPRESSED_RGBA_S3TC_DXT5_EXT},
-        {0}},
+        {0},
+    },
+};
+
+static EnumDef textureTargetEnum = {
+    .enumName = "TextureTarget",
+    .values = (EnumValue[]){
+        {"TEXTURE_1D", GL_TEXTURE_1D},
+        {"TEXTURE_2D", GL_TEXTURE_2D},
+        {"TEXTURE_3D", GL_TEXTURE_3D},
+        {"TEXTURE_1D_ARRAY", GL_TEXTURE_1D_ARRAY},
+        {"TEXTURE_2D_ARRAY", GL_TEXTURE_2D_ARRAY},
+        {"TEXTURE_RECTANGLE", GL_TEXTURE_RECTANGLE},
+        {"TEXTURE_CUBE_MAP", GL_TEXTURE_CUBE_MAP},
+        {"TEXTURE_CUBE_MAP_ARRAY", GL_TEXTURE_CUBE_MAP_ARRAY},
+        {"TEXTURE_BUFFER", GL_TEXTURE_BUFFER},
+        {"TEXTURE_2D_MULTISAMPLE", GL_TEXTURE_2D_MULTISAMPLE},
+        {"TEXTURE_2D_MULTISAMPLE_ARRAY", GL_TEXTURE_2D_MULTISAMPLE_ARRAY},
+        {0},
+    },
 };
 
 static ModuleInfo modInfo = {
@@ -242,9 +265,27 @@ static ModuleInfo modInfo = {
             {"bind_textures", (PyCFunction)bind_textures, METH_VARARGS | METH_KEYWORDS, NULL},
             {"set_pixel_pack_alignment", (PyCFunction)set_pixel_pack_alignment, METH_O, NULL},
             {"set_pixel_unpack_alignment", (PyCFunction)set_pixel_unpack_alignment, METH_O, NULL},
-            {0}}},
-    .enums = (EnumDef *[]){&textureParameterEnum, &minFilterEnum, &magFilterEnum, &wrapModeEnum, &internalFormatEnum, &pixelFormatEnum, &pixelTypeEnum, &compressedInternalFormatEnum, NULL},
-    .types = (PyTypeObject *[]){&pyTextureSpecType, &pyTexture2DType, &pyTexture2DArrayType, &pyUploadInfoType, NULL},
+            {0},
+        },
+    },
+    .enums = (EnumDef *[]){
+        &textureParameterEnum,
+        &minFilterEnum,
+        &magFilterEnum,
+        &wrapModeEnum,
+        &internalFormatEnum,
+        &pixelFormatEnum,
+        &pixelTypeEnum,
+        &compressedInternalFormatEnum,
+        &textureTargetEnum,
+        NULL,
+    },
+    .types = (PyTypeObject *[]){
+        &pyTextureSpecType,
+        &pyUploadInfoType,
+        &pyTextureType,
+        NULL,
+    },
 };
 
 PyMODINIT_FUNC PyInit_textures()

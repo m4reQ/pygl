@@ -6,12 +6,18 @@
 typedef struct
 {
     PyObject_HEAD
-    GLsizei width, height;
-    GLenum format, type;
-    GLint level, xOffset, yOffset, layer;
+    GLsizei width;
+    GLsizei height;
+    GLsizei depth;
+    GLint xOffset;
+    GLint yOffset;
+    GLint zOffset;
+    GLint level;
+    GLenum format;
+    GLenum pixelType;
+    size_t dataOffset;
     GLsizei imageSize;
     bool generateMipmap;
-    size_t dataOffset;
 } PyUploadInfo;
 
 extern PyTypeObject pyUploadInfoType;

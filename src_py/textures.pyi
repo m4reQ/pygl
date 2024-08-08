@@ -2,6 +2,19 @@ import enum
 import typing as t
 from collections.abc import Buffer as TSupportsBuffer
 
+class TextureTarget(enum.IntEnum):
+    TEXTURE_1D: int
+    TEXTURE_2D: int
+    TEXTURE_3D: int
+    TEXTURE_1D_ARRAY: int
+    TEXTURE_2D_ARRAY: int
+    TEXTURE_RECTANGLE: int
+    TEXTURE_CUBE_MAP: int
+    TEXTURE_CUBE_MAP_ARRAY: int
+    TEXTURE_BUFFER: int
+    TEXTURE_2D_MULTISAMPLE: int
+    TEXTURE_2D_MULTISAMPLE_ARRAY: int
+
 class TextureParameter(enum.IntEnum):
     DEPTH_STENCIL_TEXTURE_MODE: int
     TEXTURE_BASE_LEVEL: int
@@ -143,29 +156,35 @@ class PixelType(enum.IntEnum):
     UNSIGNED_INT_2_10_10_10_REV: int
 
 class TextureSpec:
+    target: int
+
     width: int
     height: int
+    depth: int
+
+    samples: int
+    mipmaps: int
+
     internal_format: int
-    layers: int
-    samples: int = 1
-    mipmaps: int = 4
+
     min_filter: int
     mag_filter: int
     wrap_mode: int
 
     def __init__(self,
+                 target: TextureTarget,
                  width: int,
                  height: int,
                  internal_format: InternalFormat | CompressedInternalFormat,
-                 layers: int = 0,
+                 depth: int = 1,
                  samples: int = 1,
-                 mipmaps: int = 4,
-                 min_filter: MinFilter = MinFilter.LINEAR_MIPMAP_LINEAR,
+                 mipmaps: int = 1,
+                 min_filter: MinFilter = MinFilter.LINEAR,
                  mag_filter: MagFilter = MagFilter.LINEAR,
                  wrap_mode: WrapMode = WrapMode.CLAMP_TO_EDGE) -> None: ...
 
     @property
-    def size(self) -> tuple[int, int]: ...
+    def size(self) -> tuple[int, int, int]: ...
 
     @property
     def is_multisampled(self) -> bool: ...
@@ -173,60 +192,80 @@ class TextureSpec:
 class UploadInfo:
     width: int
     height: int
-    format: int
-    pixel_type: int
-    level: int
+    depth: int
+
     x_offset: int
     y_offset: int
-    layer: int
-    image_size: int
-    generate_mipmap: bool
+    z_offset: int
+
+    level: int
+    format: int
+    pixel_type: int
+
     data_offset: int
+    image_size: int
+
+    generate_mipmap: bool
 
     def __init__(self,
+                 format: PixelFormat | CompressedInternalFormat,
                  width: int,
                  height: int,
-                 format: PixelFormat | CompressedInternalFormat,
-                 pixel_type: PixelType = PixelType.UNSIGNED_BYTE,
-                 level: int = 0,
+                 depth: int = 1,
                  x_offset: int = 0,
                  y_offset: int = 0,
-                 layer: int = 0,
+                 z_offset: int = 0,
+                 level: int = 0,
+                 pixel_type: PixelType = PixelType.UNSIGNED_BYTE,
                  image_size: int = 0,
-                 generate_mipmap: bool = True,
-                 data_offset: int = 0) -> None: ...
+                 data_offset: int = 0,
+                 generate_mipmap: bool = True) -> None: ...
 
     @property
     def is_compressed(self) -> bool: ...
 
-class Texture2D:
-    width: int
-    height: int
-
+class Texture:
     def __init__(self, spec: TextureSpec) -> None: ...
 
     def delete(self) -> None: ...
-    def set_parameter(self, param: TextureParameter, value: int | float) -> None: ...
     def bind(self) -> None: ...
     def bind_to_unit(self, unit: int) -> None: ...
     def upload(self, info: UploadInfo, data: TSupportsBuffer) -> None: ...
+    def set_parameter(self, parameter: TextureParameter, value: int) -> None: ...
     def generate_mipmap(self) -> None: ...
 
-class Texture2DArray:
-    width: int
-    height: int
-    layers: int
+    @property
+    def id(self) -> int: ...
 
-    def __init__(self, spec: TextureSpec) -> None: ...
+    @property
+    def target(self) -> TextureTarget: ...
 
-    def delete(self) -> None: ...
-    def set_parameter(self, param: TextureParameter, value: int | float) -> None: ...
-    def bind(self) -> None: ...
-    def bind_to_unit(self, unit: int) -> None: ...
-    def upload(self, info: UploadInfo, data: TSupportsBuffer) -> None: ...
-    def generate_mipmap(self) -> None: ...
+    @property
+    def width(self) -> int: ...
 
-Texture = Texture2D | Texture2DArray
+    @property
+    def height(self) -> int: ...
+
+    @property
+    def depth(self) -> int: ...
+
+    @property
+    def mipmaps(self) -> int: ...
+
+    @property
+    def is_cubemap(self) -> bool: ...
+
+    @property
+    def is_array(self) -> bool: ...
+
+    @property
+    def is_1d(self) -> bool: ...
+
+    @property
+    def is_2d(self) -> bool: ...
+
+    @property
+    def is_3d(self) -> bool: ...
 
 def bind_textures(textures: list[Texture], first: int = 0) -> None: ...
 def set_pixel_pack_alignment(alignment: t.Literal[1, 2, 4, 8]) -> None: ...

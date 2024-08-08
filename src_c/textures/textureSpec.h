@@ -1,14 +1,19 @@
 #pragma once
 #include <Python.h>
+#include <glad/gl.h>
 
 typedef struct
 {
     PyObject_HEAD
-    GLsizei width, height, layers;
+    GLenum target;
+    GLsizei width;
+    GLsizei height;
+    GLsizei depth;
     GLsizei samples;
     GLsizei mipmaps;
     GLenum internalFormat;
-    GLenum minFilter, magFilter;
+    GLenum minFilter;
+    GLenum magFilter;
     GLenum wrapMode;
 } PyTextureSpec;
 

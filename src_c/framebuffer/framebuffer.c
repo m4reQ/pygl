@@ -1,6 +1,6 @@
 #include "framebuffer.h"
 #include <structmember.h>
-#include "../textures/textureBase.h"
+#include "../textures/texture.h"
 #include "../utility.h"
 
 static const char *complete_status_to_string(GLenum status)
@@ -243,45 +243,38 @@ static void dealloc(PyFramebuffer *self)
         PyMem_Free(self->attachments);
 
     Py_CLEAR(self->specs);
-
     Py_TYPE(self)->tp_free(self);
 }
 
-static PyGetSetDef getSet[] = {
-    {"size", (getter)size_getter, NULL, NULL, NULL},
-    {0},
-};
-
-static PyMethodDef methods[] = {
-    {"bind", (PyCFunction)bind, METH_NOARGS, NULL},
-    {"unbind", (PyCFunction)unbind, METH_NOARGS, NULL},
-    {"delete", (PyCFunction) delete, METH_NOARGS, NULL},
-    {"resize", (PyCFunction)resize, METH_VARARGS, NULL},
-    {"get_attachment_id", (PyCFunction)get_attachment_id, METH_O, NULL},
-    // TODO
-    // {"clear", (PyCFunction)clear, METH_VARARGS, NULL},
-    // {"read_attachment", (PyCFunction)read_attachment, METH_VARARGS, NULL},
-    // {"read_pixel", (PyCFunction)read_pixel, METH_VARARGS, NULL},
-    {0},
-};
-
-static PyMemberDef members[] = {
-    {"id", T_UINT, offsetof(PyFramebuffer, id), READONLY, NULL},
-    {"width", T_INT, offsetof(PyFramebuffer, width), READONLY, NULL},
-    {"height", T_INT, offsetof(PyFramebuffer, height), READONLY, NULL},
-    {"specs", T_OBJECT_EX, offsetof(PyFramebuffer, specs), READONLY, NULL},
-    {0},
-};
-
 PyTypeObject pyFramebufferType = {
     PyVarObject_HEAD_INIT(NULL, 0)
-        .tp_flags = Py_TPFLAGS_DEFAULT,
-    .tp_new = PyType_GenericNew,
+    .tp_flags = Py_TPFLAGS_DEFAULT,
     .tp_name = "pygl.framebuffer.Framebuffer",
     .tp_basicsize = sizeof(PyFramebuffer),
+    .tp_new = PyType_GenericNew,
     .tp_init = (initproc)init,
     .tp_dealloc = (destructor)dealloc,
-    .tp_members = members,
-    .tp_methods = methods,
-    .tp_getset = getSet,
+    .tp_members = (PyMemberDef[]){
+        {"id", T_UINT, offsetof(PyFramebuffer, id), READONLY, NULL},
+        {"width", T_INT, offsetof(PyFramebuffer, width), READONLY, NULL},
+        {"height", T_INT, offsetof(PyFramebuffer, height), READONLY, NULL},
+        {"specs", T_OBJECT_EX, offsetof(PyFramebuffer, specs), READONLY, NULL},
+        {0},
+    },
+    .tp_methods = (PyMethodDef[]){
+        {"bind", (PyCFunction)bind, METH_NOARGS, NULL},
+        {"unbind", (PyCFunction)unbind, METH_NOARGS, NULL},
+        {"delete", (PyCFunction) delete, METH_NOARGS, NULL},
+        {"resize", (PyCFunction)resize, METH_VARARGS, NULL},
+        {"get_attachment_id", (PyCFunction)get_attachment_id, METH_O, NULL},
+        // TODO add missing framebuffer functions
+        // {"clear", (PyCFunction)clear, METH_VARARGS, NULL},
+        // {"read_attachment", (PyCFunction)read_attachment, METH_VARARGS, NULL},
+        // {"read_pixel", (PyCFunction)read_pixel, METH_VARARGS, NULL},
+        {0},
+    },
+    .tp_getset = (PyGetSetDef[]){
+        {"size", (getter)size_getter, NULL, NULL, NULL},
+        {0},
+    },
 };

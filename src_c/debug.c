@@ -4,8 +4,7 @@
 #include "sync.h"
 #include "vertexArray/vertexArray.h"
 #include "shaders/shader.h"
-#include "textures/texture2D.h"
-#include "textures/texture2DArray.h"
+#include "textures/texture.h"
 #include "framebuffer/framebuffer.h"
 #include "buffers/buffer.h"
 #include "buffers/textureBuffer.h"
@@ -123,14 +122,13 @@ static void ready_checked_types(void)
     PyType_Ready(&pyBufferType);
     PyType_Ready(&pyTextureBufferType);
     PyType_Ready(&pySyncType);
-    PyType_Ready(&pyTexture2DArrayType);
-    PyType_Ready(&pyTexture2DType);
+    PyType_Ready(&pyTextureType);
     PyType_Ready(&pyVertexArrayType);
 }
 
 static GLenum get_gl_object_type(PyObject *object, GLenum *outEnum)
 {
-    if (PyObject_IsInstance(object, (PyObject *)&pyTexture2DType) || PyObject_IsInstance(object, (PyObject *)&pyTexture2DArrayType))
+    if (PyObject_IsInstance(object, (PyObject *)&pyTextureType))
         *outEnum = GL_TEXTURE;
     else if (PyObject_IsInstance(object, (PyObject *)&pyBufferType))
         *outEnum = GL_BUFFER;
