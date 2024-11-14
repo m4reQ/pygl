@@ -1,4 +1,5 @@
 #pragma once
+#include <stdbool.h>
 #include "../gl.h"
 
 typedef struct
@@ -8,6 +9,7 @@ typedef struct
     void *dataPtr;
     GLenum flags;
     GLsizeiptr size, currentOffset;
+    bool isPersistent;
 } PyBuffer;
 
 extern PyTypeObject pyBufferType;

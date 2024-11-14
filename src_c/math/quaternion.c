@@ -3,9 +3,9 @@
 
 #define NEW_QUAT(var) Quaternion *var = PyObject_New(Quaternion, &pyQuaternionType)
 
-void py_quaternion_copy(void *dst, const Quaternion *quaternion)
+void py_quaternion_copy(void *dst, Quaternion *quaternion)
 {
-    glm_quat_copy(quaternion, dst);
+    glm_quat_copy(&quaternion->data[0], dst);
 }
 
 static int init(Quaternion *self, PyObject *args, PyObject *Py_UNUSED(kwargs))
@@ -115,6 +115,19 @@ static PyObject *interpolate(Quaternion *self, PyObject *args)
     return (PyObject *)res;
 }
 
+// inplace
+static PyObject *rotate_vector(Quaternion *self, Vector3 *vector)
+{
+    if (!PyObject_IsInstance((PyObject *)vector, (PyObject *)&pyVector3Type))
+    {
+        PyErr_Format(PyExc_TypeError, "Expected argument to be of type pygl.math.Vector3, got: %s.", Py_TYPE(vector)->tp_name);
+        return NULL;
+    }
+
+    glm_quat_rotatev(self->data, vector->data, vector->data);
+    return Py_NewRef((PyObject *)vector);
+}
+
 #pragma region GETTERS
 static PyObject *angle_get(Quaternion *self, void *Py_UNUSED(closure))
 {
@@ -144,14 +157,13 @@ static PyObject *imag_get(Quaternion *self, void *Py_UNUSED(closure))
 #pragma endregion
 
 #pragma region NB_METHODS
-static PyObject *mul(Quaternion *self, PyObject *other)
+static PyObject *mul(Quaternion *self, Quaternion *other)
 {
-    if (!PyObject_IsInstance(other, (PyObject *)&pyQuaternionType))
+    if (!PyObject_IsInstance((PyObject *)other, (PyObject *)&pyQuaternionType))
         Py_RETURN_NOTIMPLEMENTED;
 
     NEW_QUAT(res);
-    glm_quat_mul(self->data, ((Quaternion *)other)->data, res->data);
-
+    glm_quat_mul(self->data, other->data, res->data);
     return (PyObject *)res;
 }
 
@@ -255,6 +267,7 @@ PyTypeObject pyQuaternionType = {
         {"inverse", (PyCFunction)inverse, METH_NOARGS, NULL},
         {"inversed", (PyCFunction)inversed, METH_NOARGS, NULL},
         {"interpolate", (PyCFunction)interpolate, METH_VARARGS, NULL},
+        {"rotate_vector", (PyCFunction)rotate_vector, METH_O, NULL},
         {0},
     },
     .tp_getset = (PyGetSetDef[]){

@@ -199,6 +199,20 @@ static PyObject *clear(PyObject *Py_UNUSED(self), PyObject *mask)
     Py_RETURN_NONE;
 }
 
+static PyObject *flush(PyObject *Py_UNUSED(self), PyObject *Py_UNUSED(args))
+{
+    glFlush();
+
+    Py_RETURN_NONE;
+}
+
+static PyObject *finish(PyObject *Py_UNUSED(self), PyObject *Py_UNUSED(args))
+{
+    glFinish();
+
+    Py_RETURN_NONE;
+}
+
 static EnumDef drawModeEnum = {
     .enumName = "DrawMode",
     .values = (EnumValue[]){
@@ -281,6 +295,8 @@ static ModuleInfo modInfo = {
             {"clear", clear, METH_O, NULL},
             {"memory_barrier", memory_barrier, METH_O, NULL},
             {"memory_barrier_by_region", memory_barrier_by_region, METH_O, NULL},
+            {"flush", flush, METH_NOARGS, NULL},
+            {"finish", finish, METH_NOARGS, NULL},
             {0},
         },
     },

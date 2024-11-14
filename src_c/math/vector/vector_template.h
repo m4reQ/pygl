@@ -38,7 +38,7 @@
     do                                                                    \
     {                                                                     \
         if (!PyObject_IsInstance((PyObject *)obj, (PyObject *)&_PY_TYPE)) \
-            Py_RETURN_NOTIMPLEMENTED;                                     \
+            return (_TYPE *)Py_NotImplemented;                            \
     } while (0)
 
 static int vec_init(_SELF, PyObject *args, PyObject *_kwargs)
@@ -189,13 +189,13 @@ static int vec_assign_item(_SELF, Py_ssize_t index, PyObject *value)
     return 0;
 }
 
-static PyObject *vec_add(_SELF, PyObject *other)
+static _TYPE *vec_add(_SELF, PyObject *other)
 {
     _VEC_OP_CHECK_TYPE(other);
     _NEW(res);
     _GLM_INVOKE(add, self->data, ((_TYPE *)other)->data, res->data);
 
-    return (PyObject *)res;
+    return res;
 }
 
 static _TYPE *vec_iadd(_SELF, _TYPE *other)
@@ -203,16 +203,16 @@ static _TYPE *vec_iadd(_SELF, _TYPE *other)
     _VEC_OP_CHECK_TYPE(other);
     _GLM_INVOKE(add, self->data, other->data, self->data);
 
-    return Py_NewRef(self);
+    return (_TYPE *)Py_NewRef(self);
 }
 
-static PyObject *vec_sub(_SELF, PyObject *other)
+static _TYPE *vec_sub(_SELF, PyObject *other)
 {
     _VEC_OP_CHECK_TYPE(other);
     _NEW(res);
     _GLM_INVOKE(sub, self->data, ((_TYPE *)other)->data, res->data);
 
-    return (PyObject *)res;
+    return res;
 }
 
 static _TYPE *vec_isub(_SELF, PyObject *other)
@@ -221,10 +221,10 @@ static _TYPE *vec_isub(_SELF, PyObject *other)
 
     _GLM_INVOKE(sub, self->data, ((_TYPE *)other)->data, self->data);
 
-    return Py_NewRef(self);
+    return (_TYPE *)Py_NewRef(self);
 }
 
-static PyObject *vec_mult(_SELF, PyObject *other)
+static _TYPE *vec_mult(_SELF, PyObject *other)
 {
     if (PyFloat_Check(other))
     {
@@ -233,7 +233,7 @@ static PyObject *vec_mult(_SELF, PyObject *other)
 
         return res;
     }
-    else if (PyObject_IsInstance(other, &_PY_TYPE))
+    else if (PyObject_IsInstance(other, (PyObject *)&_PY_TYPE))
     {
         _NEW(res);
         _GLM_INVOKE(mul, self->data, ((_TYPE *)other)->data, res->data);
@@ -241,7 +241,7 @@ static PyObject *vec_mult(_SELF, PyObject *other)
         return res;
     }
 
-    Py_RETURN_NOTIMPLEMENTED;
+    return (_TYPE *)Py_NotImplemented;
 }
 
 static _TYPE *vec_imult(_SELF, PyObject *other)
@@ -249,15 +249,15 @@ static _TYPE *vec_imult(_SELF, PyObject *other)
     if (PyFloat_Check(other))
     {
         _GLM_INVOKE(scale, self->data, (float)PyFloat_AS_DOUBLE(other), self->data);
-        return Py_NewRef(self);
+        return (_TYPE *)Py_NewRef(self);
     }
-    else if (PyObject_IsInstance(other, &_PY_TYPE))
+    else if (PyObject_IsInstance(other, (PyObject *)&_PY_TYPE))
     {
         _GLM_INVOKE(mul, self->data, ((_TYPE *)other)->data, self->data);
-        return Py_NewRef(self);
+        return (_TYPE *)Py_NewRef(self);
     }
 
-    Py_RETURN_NOTIMPLEMENTED;
+    return (_TYPE *)Py_NotImplemented;
 }
 
 static _TYPE *vec_negative(_SELF, _TYPE *other)
@@ -380,9 +380,39 @@ static PyObject *class_length(PyTypeObject *cls, PyObject *Py_UNUSED(args))
     return PyLong_FromLong(VEC_LEN);
 }
 
+static _TYPE *vec_forward(PyTypeObject *cls, PyObject *Py_UNUSED(args))
+{
+    _NEW(result);
+    result->data[0] = 0.0;
+    result->data[1] = 0.0;
+    result->data[2] = -1.0;
+
+    return result;
+}
+
+static _TYPE *vec_up(PyTypeObject *cls, PyObject *Py_UNUSED(args))
+{
+    _NEW(result);
+    result->data[0] = 0.0;
+    result->data[1] = 1.0;
+    result->data[2] = 0.0;
+
+    return result;
+}
+
+static _TYPE *vec_right(PyTypeObject *cls, PyObject *Py_UNUSED(args))
+{
+    _NEW(result);
+    result->data[0] = 1.0;
+    result->data[1] = 0.0;
+    result->data[2] = 0.0;
+
+    return result;
+}
+
 PyTypeObject _PY_TYPE = {
     PyVarObject_HEAD_INIT(NULL, 0)
-        .tp_new = PyType_GenericNew,
+    .tp_new = PyType_GenericNew,
     .tp_flags = Py_TPFLAGS_DEFAULT,
     .tp_name = "pygl.math." STRINGIFY(_TYPE),
     .tp_basicsize = sizeof(_TYPE),
@@ -423,6 +453,11 @@ PyTypeObject _PY_TYPE = {
         {"zero", (PyCFunction)vec_zero, METH_CLASS | METH_NOARGS, NULL},
         {"one", (PyCFunction)vec_one, METH_CLASS | METH_NOARGS, NULL},
         {"length", (PyCFunction)class_length, METH_CLASS | METH_NOARGS, NULL},
+#if VEC_LEN == 3
+        {"forward", (PyCFunction)vec_forward, METH_NOARGS | METH_CLASS, NULL},
+        {"up", (PyCFunction)vec_up, METH_NOARGS | METH_CLASS, NULL},
+        {"right", (PyCFunction)vec_right, METH_NOARGS | METH_CLASS, NULL},
+#endif
         {0},
     },
     .tp_as_sequence = &(PySequenceMethods){

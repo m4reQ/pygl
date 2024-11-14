@@ -1,4 +1,5 @@
 #include <stdbool.h>
+#include "../buffers/buffer.h"
 #include "texture.h"
 #include "textureSpec.h"
 #include "uploadInfo.h"
@@ -89,7 +90,7 @@ static size_t get_data_length(const PyUploadInfo *info)
 
 static void *get_data_ptr(const Py_buffer *buffer, const PyUploadInfo *info)
 {
-    if (!PyBuffer_IsContiguous(buffer, 'c'))
+    if (!PyBuffer_IsContiguous(buffer, 'C'))
     {
         PyErr_SetString(PyExc_BufferError, "Data buffer has to be C-contiguous. For more informations go to https://github.com/m4reQ/pygl?tab=readme-ov-file#buffer-protocol-usage.");
         return NULL;
@@ -114,9 +115,9 @@ static void *get_data_ptr(const Py_buffer *buffer, const PyUploadInfo *info)
 
 static bool upload_texture_1d(PyTexture *texture, const PyUploadInfo *info, const Py_buffer *buffer)
 {
-    if (info->width <= 0 || info->xOffset <= 0)
+    if (info->width <= 0 || info->xOffset < 0)
     {
-        PyErr_SetString(PyExc_ValueError, "1D texture upload requires upload info width and x_offset to be non-negative.");
+        PyErr_SetString(PyExc_ValueError, "1D texture upload requires width to be greater than 0 and x_offset to be non-negative.");
         return false;
     }
 
@@ -149,11 +150,11 @@ static bool upload_texture_1d(PyTexture *texture, const PyUploadInfo *info, cons
 static bool upload_texture_2d(PyTexture *texture, const PyUploadInfo *info, const Py_buffer *buffer)
 {
     if (info->width <= 0 ||
-        info->xOffset <= 0 ||
         info->height <= 0 ||
-        info->yOffset <= 0)
+        info->xOffset < 0 ||
+        info->yOffset < 0)
     {
-        PyErr_SetString(PyExc_ValueError, "2D texture upload requires width, x_offset, height and y_offset to be non-negative.");
+        PyErr_SetString(PyExc_ValueError, "2D texture upload requires width and height to be greater than 0 and x_offset, y_offset to be non-negative.");
         return false;
     }
 
@@ -190,13 +191,13 @@ static bool upload_texture_2d(PyTexture *texture, const PyUploadInfo *info, cons
 static bool upload_texture_3d(PyTexture *texture, const PyUploadInfo *info, const Py_buffer *buffer)
 {
     if (info->width <= 0 ||
-        info->xOffset <= 0 ||
         info->height <= 0 ||
-        info->yOffset <= 0 ||
         info->depth <= 0 ||
-        info->zOffset <= 0)
+        info->xOffset < 0 ||
+        info->yOffset < 0 ||
+        info->zOffset < 0)
     {
-        PyErr_SetString(PyExc_ValueError, "3D texture upload requires width, x_offset, height, y_offset, depth and z_offset to be non-negative.");
+        PyErr_SetString(PyExc_ValueError, "3D texture upload requires width, height and depth to be greater than 0 and x_offset, y_offset, z_offset to be non-negative.");
         return false;
     }
 
@@ -348,11 +349,20 @@ static int init(PyTexture *self, PyObject *args, PyObject *kwargs)
     self->depth = self->target == GL_TEXTURE_CUBE_MAP ? 6 : spec->depth;
     self->target = spec->target;
     self->mipmaps = spec->mipmaps;
+    self->internalFormat = spec->internalFormat;
 
-    if (self->mipmaps < 0)
+    if (self->target == GL_TEXTURE_BUFFER)
     {
-        PyErr_SetString(PyExc_ValueError, "Mipmaps count for texture must be positive.");
-        return -1;
+        setParameters = false;
+        self->mipmaps = 1;
+    }
+    else
+    {
+        if (self->mipmaps < 0)
+        {
+            PyErr_SetString(PyExc_ValueError, "Mipmaps count for texture must be positive.");
+            return -1;
+        }
     }
 
     glCreateTextures(self->target, 1, &self->id);
@@ -369,6 +379,8 @@ static int init(PyTexture *self, PyObject *args, PyObject *kwargs)
              self->target == GL_TEXTURE_3D ||
              self->target == GL_TEXTURE_CUBE_MAP)
         storageCreateSuccess = create_3d_texture_storage(self, spec);
+    else if (self->target == GL_TEXTURE_BUFFER)
+        storageCreateSuccess = true;
 
     if (!storageCreateSuccess)
         return -1;
@@ -384,7 +396,7 @@ static int init(PyTexture *self, PyObject *args, PyObject *kwargs)
         glTextureParameteri(self->id, GL_TEXTURE_WRAP_T, (GLint)spec->wrapMode);
     }
 
-    if (!check_texture_immutable_format(self))
+    if (self->target != GL_TEXTURE_BUFFER && !check_texture_immutable_format(self))
         return -1;
 
     return 0;
@@ -426,9 +438,14 @@ static PyObject *bind_to_unit(PyTexture *self, PyObject *unit)
 
 static PyObject *set_parameter(PyTexture *self, PyObject *args)
 {
+    if (self->target == GL_TEXTURE_BUFFER)
+    {
+        PyErr_SetString(PyExc_RuntimeError, "Cannot set parameters of texture which is a buffer texture. (target == GL_TEXTURE_BUFFER).");
+        return NULL;
+    }
+
     GLenum parameterName;
     PyObject *value;
-
     if (!PyArg_ParseTuple(args, "IO", &parameterName, &value))
         return NULL;
 
@@ -454,6 +471,12 @@ static PyObject *generate_mipmap(PyTexture *self, PyObject *Py_UNUSED(args))
 static PyObject *upload(PyTexture *self, PyObject *args)
 {
     PyObject *result = NULL;
+
+    if (self->target == GL_TEXTURE_BUFFER)
+    {
+        PyErr_SetString(PyExc_RuntimeError, "Cannot use `Texture.upload` on a texture with GL_TEXTURE_BUFFER target. To upload data to buffer textures update appropriate buffer contents.");
+        return NULL;
+    }
 
     PyUploadInfo *info;
     Py_buffer buffer = {0};
@@ -492,6 +515,25 @@ end:
         PyBuffer_Release(&buffer);
 
     return result;
+}
+
+static PyObject *set_texture_buffer(PyTexture *self, PyBuffer *buffer)
+{
+    if (self->target != GL_TEXTURE_BUFFER)
+    {
+        PyErr_SetString(PyExc_RuntimeError, "Texture whose target is not GL_TEXTURE_BUFFER cannot be used as buffer texture.");
+        return NULL;
+    }
+
+    if (!PyObject_IsInstance((PyObject *)buffer, (PyObject *)&pyBufferType))
+    {
+        PyErr_Format(PyExc_TypeError, "Expected argument to be of type pygl.buffers.Buffer, got: %s.", Py_TYPE(buffer)->tp_name);
+        return NULL;
+    }
+
+    glTextureBuffer(self->id, self->internalFormat, buffer->id);
+
+    Py_RETURN_NONE;
 }
 
 static PyObject *get_is_cubemap(PyTexture *self, void *Py_UNUSED(closure))
@@ -544,6 +586,7 @@ PyTypeObject pyTextureType = {
         {"height", Py_T_INT, offsetof(PyTexture, height), Py_READONLY, NULL},
         {"depth", Py_T_INT, offsetof(PyTexture, depth), Py_READONLY, NULL},
         {"mipmaps", Py_T_INT, offsetof(PyTexture, mipmaps), Py_READONLY, NULL},
+        {"internal_format", Py_T_UINT, offsetof(PyTexture, internalFormat), Py_READONLY, NULL},
         {0},
     },
     .tp_methods = (PyMethodDef[]){
@@ -553,6 +596,7 @@ PyTypeObject pyTextureType = {
         {"upload", (PyCFunction)upload, METH_VARARGS, NULL},
         {"set_parameter", (PyCFunction)set_parameter, METH_VARARGS, NULL},
         {"generate_mipmap", (PyCFunction)generate_mipmap, METH_NOARGS, NULL},
+        {"set_texture_buffer", (PyCFunction)set_texture_buffer, METH_O, NULL},
         {0},
     },
     .tp_getset = (PyGetSetDef[]){

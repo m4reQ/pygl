@@ -8,6 +8,7 @@ typedef struct
     PyObject_HEAD
     GL_OBJECT_HEAD;
     GLenum target;
+    GLenum internalFormat;
     GLsizei width;
     GLsizei height;
     GLsizei depth;

@@ -189,7 +189,7 @@ static PyObject *bind_vertex_buffer(PyVertexArray *self, PyObject *args, PyObjec
 
 static PyObject *bind_index_buffer(PyVertexArray *self, PyBuffer *buffer)
 {
-    if (!PyObject_IsInstance(buffer, &pyBufferType))
+    if (!PyObject_IsInstance((PyObject *)buffer, (PyObject *)&pyBufferType))
     {
         PyErr_Format(PyExc_TypeError, "Expected argument to be of type pygl.buffers.Buffer, got: %s.", Py_TYPE(buffer)->tp_name);
         return NULL;

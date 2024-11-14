@@ -37,9 +37,15 @@ static PyObject *transfer(PyBuffer *self, PyObject *Py_UNUSED(args))
 
     if (self->flags & GL_DYNAMIC_STORAGE_BIT)
         glNamedBufferSubData(self->id, 0, (GLsizeiptr)self->currentOffset, self->dataPtr);
-    else if (((self->flags & GL_MAP_PERSISTENT_BIT) != GL_MAP_PERSISTENT_BIT) && self->dataPtr) // if buffer was not mapped ealier just do nothing
+    else if (!self->isPersistent && self->dataPtr != NULL) // non-persistent buffer that was mapped before
     {
-        glUnmapNamedBuffer(self->id);
+        GLboolean unmapSuccess = glUnmapNamedBuffer(self->id);
+        if (!unmapSuccess)
+        {
+            PyErr_Format(PyExc_RuntimeError, "Failed to unmap buffer: 0x%x.", glGetError());
+            return NULL;
+        }
+
         self->dataPtr = NULL;
     }
 
@@ -246,9 +252,6 @@ static void dealloc(PyBuffer *self)
 
 static int init(PyBuffer *self, PyObject *args, PyObject *Py_UNUSED(kwargs))
 {
-    self->currentOffset = 0;
-    self->dataPtr = NULL;
-
     if (!PyArg_ParseTuple(args, "II", &self->size, &self->flags))
         return -1;
 
@@ -259,6 +262,8 @@ static int init(PyBuffer *self, PyObject *args, PyObject *Py_UNUSED(kwargs))
             PyErr_SetString(PyExc_ValueError, "When using BufferFlags.MAP_PERSISTENT_BIT either BufferFlags.MAP_WRITE_BIT or BufferFlags.MAP_READ_BIT must also be set.");
             return -1;
         }
+
+        self->isPersistent = true;
     }
 
     glCreateBuffers(1, &self->id);

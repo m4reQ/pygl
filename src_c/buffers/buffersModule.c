@@ -6,7 +6,8 @@ static EnumDef bufferFlagsEnum = {
     .values = (EnumValue[]){
         {"MAP_WRITE_BIT", GL_MAP_WRITE_BIT},
         {"MAP_READ_BIT", GL_MAP_READ_BIT},
-        {"MAP_PERSISTENT_BIT", GL_MAP_PERSISTENT_BIT | GL_MAP_COHERENT_BIT},
+        {"MAP_PERSISTENT_BIT", GL_MAP_PERSISTENT_BIT},
+        {"MAP_COHERENT_BIT", GL_MAP_COHERENT_BIT},
         {"DYNAMIC_STORAGE_BIT", GL_DYNAMIC_STORAGE_BIT},
         {0},
     },

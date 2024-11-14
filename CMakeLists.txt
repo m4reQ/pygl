@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.21)
+cmake_minimum_required(VERSION 3.24)
 project(pygl)
 
 # Change option behavior for compatibility with cglm
@@ -35,4 +35,5 @@ set_target_properties(
     C_STANDARD 17
     OUTPUT_NAME "pygl$<$<CONFIG:Debug>:_d>" # if debug mode is used output filename with _d suffix
     PREFIX ""
-    SUFFIX ".pyd")
+    SUFFIX ".pyd"
+    COMPILE_WARNING_AS_ERROR ON)

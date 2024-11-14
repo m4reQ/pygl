@@ -4,12 +4,12 @@ from collections.abc import Buffer as TSupportsBuffer
 
 from .math import (Matrix2, Matrix3, Matrix4, Quaternion, Vector2, Vector3,
                    Vector4)
-from .textures import InternalFormat
 
 class BufferFlags(enum.IntFlag):
     MAP_WRITE_BIT: int
     MAP_READ_BIT: int
     MAP_PERSISTENT_BIT: int
+    MAP_COHERENT_BIT: int
     DYNAMIC_STORAGE_BIT: int
 
 class BufferBaseTarget(enum.IntEnum):

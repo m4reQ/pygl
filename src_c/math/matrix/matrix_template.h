@@ -260,8 +260,8 @@ static PyObject *add(_SELF, Matrix4 *other)
 {
     _MAT_OP_CHECK_TYPE(other);
 
-    float *data = &self->data[0];
-    float *otherData = &other->data[0];
+    float *data = &self->data[0][0];
+    float *otherData = &other->data[0][0];
 
     _NEW(res);
     for (size_t i = 0; i < MAT_LEN * MAT_LEN; i++)
@@ -274,8 +274,8 @@ static PyObject *iadd(_SELF, Matrix4 *other)
 {
     _MAT_OP_CHECK_TYPE(other);
 
-    float *data = &self->data[0];
-    float *otherData = &other->data[0];
+    float *data = &self->data[0][0];
+    float *otherData = &other->data[0][0];
 
     for (size_t i = 0; i < MAT_LEN * MAT_LEN; i++)
         data[i] = data[i] + otherData[i];
@@ -287,8 +287,8 @@ static PyObject *sub(_SELF, Matrix4 *other)
 {
     _MAT_OP_CHECK_TYPE(other);
 
-    float *data = &self->data[0];
-    float *otherData = &other->data[0];
+    float *data = &self->data[0][0];
+    float *otherData = &other->data[0][0];
 
     _NEW(res);
     for (size_t i = 0; i < MAT_LEN * MAT_LEN; i++)
@@ -301,8 +301,8 @@ static PyObject *isub(_SELF, Matrix4 *other)
 {
     _MAT_OP_CHECK_TYPE(other);
 
-    float *data = &self->data[0];
-    float *otherData = &other->data[0];
+    float *data = &self->data[0][0];
+    float *otherData = &other->data[0][0];
 
     for (size_t i = 0; i < MAT_LEN * MAT_LEN; i++)
         data[i] = data[i] - otherData[i];
@@ -387,6 +387,7 @@ static int get_buffer(_SELF, Py_buffer *buffer, int flags)
     return 0;
 }
 
+#if MAT_LEN == 4
 static Matrix4 *ortho(PyTypeObject *cls, PyObject *args, PyObject *kwargs)
 {
     static char *kwNames[] = {"left", "right", "bottom", "top", "z_near", "z_far", NULL};
@@ -453,7 +454,7 @@ static Matrix4 *look_at(PyTypeObject *cls, PyObject *args, PyObject *kwargs)
 
 static Matrix4 *look(PyTypeObject *cls, PyObject *args, PyObject *kwargs)
 {
-    Matrix4 *result;
+    static char *kwNames[] = {"eye", "dir", "up", NULL};
 
     if (PyTuple_GET_SIZE(args) == 2) // Matrix4.look(Vector3, Quaternion)
     {
@@ -464,21 +465,20 @@ static Matrix4 *look(PyTypeObject *cls, PyObject *args, PyObject *kwargs)
 
         _NEW(result);
         glm_quat_look(eye->data, orientation->data, result->data);
+
+        return result;
     }
-    else // Matrix4.look(Vector3, Vector3, Vector3 = Vector3(0.0, 1.0, 0.0))
-    {
-        static char *kwNames[] = {"eye", "dir", "up", NULL};
 
-        Vector3 *eye, *dir;
-        Vector3 *up = NULL;
-        if (!PyArg_ParseTupleAndKeywords(args, kwargs, "O!O!|O!", kwNames, &pyVector3Type, &eye, &pyVector3Type, &dir, &pyVector3Type, &up))
-            return NULL;
+    // Matrix4.look(Vector3, Vector3, Vector3 = Vector3(0.0, 1.0, 0.0))
+    Vector3 *eye, *dir;
+    Vector3 *up = NULL;
+    if (!PyArg_ParseTupleAndKeywords(args, kwargs, "O!O!|O!", kwNames, &pyVector3Type, &eye, &pyVector3Type, &dir, &pyVector3Type, &up))
+        return NULL;
 
-        vec3 *upData = (up != NULL) ? &up->data : &(vec3){0.0f, 1.0f, 0.0f};
+    vec3 *upData = (up != NULL) ? &up->data : &(vec3){0.0f, 1.0f, 0.0f};
 
-        _NEW(result);
-        glm_look(eye->data, dir->data, *upData, result->data);
-    }
+    _NEW(result);
+    glm_look(eye->data, dir->data, *upData, result->data);
 
     return result;
 }
@@ -497,8 +497,8 @@ static Matrix4 *transform(PyTypeObject *cls, PyObject *args, PyObject *kwargs)
 
     if (argsCount >= 1)
     {
-        Vector3 *translation = PyTuple_GET_ITEM(args, 0);
-        if (!PyObject_IsInstance(translation, &pyVector3Type))
+        Vector3 *translation = (Vector3 *)PyTuple_GET_ITEM(args, 0);
+        if (!PyObject_IsInstance((PyObject *)translation, (PyObject *)&pyVector3Type))
         {
             PyErr_Format(PyExc_TypeError, "Expected argument 1 to be of type pygl.math.Vector3, got: %s.", Py_TYPE(translation)->tp_name);
             return NULL;
@@ -510,8 +510,8 @@ static Matrix4 *transform(PyTypeObject *cls, PyObject *args, PyObject *kwargs)
         hasScale = true; // we have to defer applying scale to keep valid transformation order
     if (argsCount >= 3)
     {
-        Quaternion *rotation = PyTuple_GET_ITEM(args, 2);
-        if (!PyObject_IsInstance(rotation, &pyQuaternionType))
+        Quaternion *rotation = (Quaternion *)PyTuple_GET_ITEM(args, 2);
+        if (!PyObject_IsInstance((PyObject *)rotation, (PyObject *)&pyQuaternionType))
         {
             PyErr_Format(PyExc_TypeError, "Expected argument 3 to be of type pygl.math.Quaternion, got: %s.", Py_TYPE(rotation)->tp_name);
             return NULL;
@@ -522,8 +522,8 @@ static Matrix4 *transform(PyTypeObject *cls, PyObject *args, PyObject *kwargs)
 
     if (hasScale)
     {
-        Vector3 *scale = PyTuple_GET_ITEM(args, 1);
-        if (!PyObject_IsInstance(scale, &pyVector3Type))
+        Vector3 *scale = (Vector3 *)PyTuple_GET_ITEM(args, 1);
+        if (!PyObject_IsInstance((PyObject *)scale, (PyObject *)&pyVector3Type))
         {
             PyErr_Format(PyExc_TypeError, "Expected argument 1 to be of type pygl.math.Vector3, got: %s.", Py_TYPE(scale)->tp_name);
             return NULL;
@@ -537,6 +537,7 @@ static Matrix4 *transform(PyTypeObject *cls, PyObject *args, PyObject *kwargs)
 
     return result;
 }
+#endif
 
 static PyObject *class_length(PyTypeObject *cls, PyObject *Py_UNUSED(args))
 {
