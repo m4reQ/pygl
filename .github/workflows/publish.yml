@@ -50,16 +50,31 @@ jobs:
             CMAKE_VERBOSE_MAKEFILE=ON
           build-args: --config ${{ env.PYGL_BUILD_TYPE }}
 
-      - name: Create wheel
-        id: wheel
+      - name: Create wheel (Windows)
+        if: matrix.os == 'windows-latest'
+        id: wheel-windows
+        run: |
+          echo "WHL_FILEPATH=$(python -m easywheel -B ./build/cmake)" >> $env:GITHUB_OUTPUT
+
+      - name: Create wheel (Ubuntu)
+        if: matrix.os == 'ubuntu-latest'
+        id: wheel-ubuntu
         run: |
           echo "WHL_FILEPATH=$(python -m easywheel -B ./build/cmake)" >> $GITHUB_OUTPUT
 
-      - name: Upload artifacts
+      - name: Upload artifacts (Windows)
+        if: matrix.os == 'windows-latest'
         uses: actions/upload-artifact@v4
         with:
           name: wheel-${{ matrix.os }}-${{ github.sha }}
-          path: ${{ steps.wheel.outputs.WHL_FILEPATH }}
+          path: ${{ steps.wheel-windows.outputs.WHL_FILEPATH }}
+
+      - name: Upload artifacts (Ubuntu)
+        if: matrix.os == 'ubuntu-latest'
+        uses: actions/upload-artifact@v4
+        with:
+          name: wheel-${{ matrix.os }}-${{ github.sha }}
+          path: ${{ steps.wheel-ubuntu.outputs.WHL_FILEPATH }}
 
   publish:
     runs-on: ubuntu-latest
