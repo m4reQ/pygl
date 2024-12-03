@@ -19,7 +19,7 @@ file(GLOB_RECURSE SOURCES CONFIGURE_DEPENDS "pygl_c/*.c")
 # setup library
 add_library(pygl MODULE ${SOURCES})
 
-target_link_libraries(pygl PRIVATE ${Python_LIBRARIES} glad cglm_headers)
+target_link_libraries(pygl PUBLIC ${Python_LIBRARIES} glad cglm_headers)
 target_include_directories(pygl PRIVATE ${Python_INCLUDE_DIRS})
 target_compile_definitions(pygl PRIVATE "PY_SSIZE_T_CLEAN")
 
