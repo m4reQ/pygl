@@ -107,11 +107,11 @@ static PyObject *vec_dot(_SELF, _TYPE *other)
     return PyFloat_FromDouble((double)result);
 }
 
+#if VEC_LEN != 4
 static PyObject *vec_cross(_SELF, _TYPE *other)
 {
     _VEC_CHECK(other);
 
-#if VEC_LEN != 4
 #if VEC_LEN == 2
     float result = _GLM_INVOKE(cross, self->data, other->data);
     return PyFloat_FromDouble((double)result);
@@ -121,8 +121,8 @@ static PyObject *vec_cross(_SELF, _TYPE *other)
 #endif
 
     return (PyObject *)result;
-#endif
 }
+#endif
 
 static PyObject *vec_distance(_SELF, _TYPE *other)
 {
