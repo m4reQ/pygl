@@ -4,6 +4,10 @@
 #include "shaderStage.h"
 #include "../utility.h"
 
+#ifndef _countof
+#define _countof(x) (sizeof(x) / sizeof(x[0]))
+#endif
+
 #define READ_FILE_CHUNK_SIZE 1024 * 64 // 64 KiB
 #define SET_UNIFORM_MAT_IMPL(type)                                                    \
     switch (len)                                                                      \

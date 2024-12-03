@@ -7,6 +7,10 @@
 #include "vector.h"
 #include "../../utility.h"
 
+#ifndef _countof
+#define _countof(x) (sizeof(x) / sizeof(x[0]))
+#endif
+
 #define _TYPE CAT(Vector, VEC_LEN)
 #define _PY_TYPE CAT(CAT(pyVector, VEC_LEN), Type)
 #define _GLM_TYPE CAT(vec, VEC_LEN)
@@ -412,7 +416,7 @@ static _TYPE *vec_right(PyTypeObject *cls, PyObject *Py_UNUSED(args))
 
 PyTypeObject _PY_TYPE = {
     PyVarObject_HEAD_INIT(NULL, 0)
-    .tp_new = PyType_GenericNew,
+        .tp_new = PyType_GenericNew,
     .tp_flags = Py_TPFLAGS_DEFAULT,
     .tp_name = "pygl.math." STRINGIFY(_TYPE),
     .tp_basicsize = sizeof(_TYPE),
