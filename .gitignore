@@ -10,3 +10,4 @@ manual_tests/
 .mypy_cache
 .pytest_cache
 dist/
+*.bat

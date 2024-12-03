@@ -1,0 +1,32 @@
+name: "pygl"
+version: "0.0.1"
+python: ">=3.12"
+authors:
+  - "Marek 'm4reQ' Mizerski"
+summary: "A simple OpenGL utility library to speed up development."
+urls:
+  home: "https://github.com/m4reQ/pygl"
+  issues: "https://github.com/m4reQ/pygl/issues"
+platforms:
+  - Windows
+  - Linux
+  - MacOS
+projects:
+  - pygl
+classifiers:
+  - "Topic :: Multimedia :: Graphics"
+  - "Topic :: Multimedia :: Graphics :: 3D Rendering"
+  - "Topic :: Software Development :: Libraries"
+  - "Intended Audience :: Developers"
+  - "Programming Language :: Python :: 3 :: Only"
+  - "Programming Language :: Python :: 3.12"
+  - "Programming Language :: Python :: 3.13"
+  - "Operating System :: Microsoft :: Windows"
+  - "Operating System :: POSIX :: Linux"
+  - "Operating System :: MacOS"
+files:
+  - "build/cmake/$PYGL_BUILD_TYPE$/pygl.pyd : pygl/pygl.pyd"
+  - "!g pygl/*.pyi"
+  - "!g pygl/*.py"
+  - "pygl/py.typed"
+is_pure: false

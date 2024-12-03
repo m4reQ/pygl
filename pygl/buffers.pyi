@@ -38,7 +38,15 @@ TMatrix = Matrix2 | Matrix3 | Matrix4
 TVector = Vector2 | Vector3 | Vector4
 
 class Buffer:
-    def __init__(self, size: int, flags: BufferFlags) -> None: ...
+    '''
+    A wrapper class for OpenGL buffer. Supports various storage
+    types, such as persistent or dynamic mapping.
+    '''
+
+    def __init__(self, size: int, flags: BufferFlags) -> None:
+        '''
+        Create new buffer `size` bytes big.
+        '''
 
     @t.overload
     def store(self, data: TSupportsBuffer, offset: int | None = None) -> None: ...

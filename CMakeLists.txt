@@ -14,7 +14,7 @@ add_subdirectory(vendor/glad)
 add_subdirectory(vendor/cglm EXCLUDE_FROM_ALL)
 
 # find source files
-file(GLOB_RECURSE SOURCES "src_c/*.c")
+file(GLOB_RECURSE SOURCES CONFIGURE_DEPENDS "pygl_c/*.c")
 
 # setup library
 add_library(pygl MODULE ${SOURCES})
