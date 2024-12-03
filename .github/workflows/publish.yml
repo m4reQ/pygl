@@ -51,11 +51,13 @@ jobs:
           build-args: --config ${{ env.PYGL_BUILD_TYPE }}
 
       - name: Create wheel (Windows)
+        if: matrix.os == 'windows-latest'
         id: wheel
         run: |
           echo "WHL_FILEPATH=$(python -m easywheel -B ./build/cmake)" >> $env:GITHUB_OUTPUT
 
       - name: Create wheel (Ubuntu)
+        if: matrix.os == 'ubuntu-latest'
         id: wheel
         run: |
           echo "WHL_FILEPATH=$(python ./easywheel.py -B ./build/cmake)" >> $GITHUB_OUTPUT
