@@ -118,9 +118,9 @@ static PyObject *vec_cross(_SELF, _TYPE *other)
 #else
     _NEW(result);
     _GLM_INVOKE(cross, self->data, other->data, result->data);
-#endif
 
     return (PyObject *)result;
+#endif
 }
 #endif
 
