@@ -4,7 +4,7 @@
 
 static EnumDef shaderTypeEnum = {
     .enumName = "ShaderType",
-    .values = (EnumValue[]) {
+    .values = (EnumValue[]){
         {"FRAGMENT_SHADER", GL_FRAGMENT_SHADER},
         {"VERTEX_SHADER", GL_VERTEX_SHADER},
         {"GEOMETRY_SHADER", GL_GEOMETRY_SHADER},
@@ -16,7 +16,7 @@ static EnumDef shaderTypeEnum = {
 
 static EnumDef uniformTypeEnum = {
     .enumName = "UniformType",
-    .values = (EnumValue[]) {
+    .values = (EnumValue[]){
         {"FLOAT", GL_FLOAT},
         {"DOUBLE", GL_DOUBLE},
         {"INT", GL_INT},
@@ -28,15 +28,18 @@ static ModuleInfo modInfo = {
     .def = {
         PyModuleDef_HEAD_INIT,
         .m_name = "pygl.shaders",
-        .m_size = -1},
-    .enums = (EnumDef*[]) {
+        .m_size = -1,
+    },
+    .enums = (EnumDef *[]){
         &shaderTypeEnum,
         &uniformTypeEnum,
-        NULL},
-    .types = (PyTypeObject*[]) {
+        NULL,
+    },
+    .types = (PyTypeObject *[]){
         &pyShaderStageType,
         &pyShaderType,
-        NULL},
+        NULL,
+    },
 };
 
 PyMODINIT_FUNC PyInit_shaders()

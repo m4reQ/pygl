@@ -300,7 +300,12 @@ static ModuleInfo modInfo = {
             {0},
         },
     },
-    .enums = (EnumDef *[]){&drawModeEnum, &clearMaskEnum, &elementsTypeEnum, NULL},
+    .enums = (EnumDef *[]){
+        &drawModeEnum,
+        &clearMaskEnum,
+        &elementsTypeEnum,
+        NULL,
+    },
 };
 
 PyMODINIT_FUNC PyInit_rendering()

@@ -321,7 +321,7 @@ static ModuleInfo modInfo = {
         &polygonModeEnum,
         &blendFactorEnum,
         &stringNameEnum,
-        {0},
+        NULL,
     },
 };
 

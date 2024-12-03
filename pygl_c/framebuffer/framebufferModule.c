@@ -5,7 +5,7 @@
 
 static EnumDef attachmentFormatEnum = {
     .enumName = "AttachmentFormat",
-    .values = (EnumValue[]) {
+    .values = (EnumValue[]){
         {"RGBA8", GL_RGBA8},
         {"RG8", GL_RG8},
         {"R8", GL_R8},
@@ -54,7 +54,7 @@ static EnumDef attachmentFormatEnum = {
 
 static EnumDef attachmentEnum = {
     .enumName = "Attachment",
-    .values = (EnumValue[]) {
+    .values = (EnumValue[]){
         {"DEPTH_ATTACHMENT", GL_DEPTH_ATTACHMENT},
         {"STENCIL_ATTACHMENT", GL_STENCIL_ATTACHMENT},
         {"DEPTH_STENCIL_ATTACHMENT", GL_DEPTH_STENCIL_ATTACHMENT},
@@ -65,16 +65,19 @@ static ModuleInfo modInfo = {
     .def = {
         PyModuleDef_HEAD_INIT,
         .m_name = "pygl.framebuffer",
-        .m_size = -1},
-    .enums = (EnumDef*[]) {
+        .m_size = -1,
+    },
+    .enums = (EnumDef *[]){
         &attachmentEnum,
         &attachmentFormatEnum,
-        NULL},
-    .types = (PyTypeObject*[]) {
+        NULL,
+    },
+    .types = (PyTypeObject *[]){
         &pyTextureAttachmentType,
         &pyRenderbufferAttachmentType,
         &pyFramebufferType,
-        NULL},
+        NULL,
+    },
 };
 
 PyMODINIT_FUNC PyInit_framebuffer()

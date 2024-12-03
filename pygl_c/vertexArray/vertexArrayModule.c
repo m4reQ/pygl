@@ -5,7 +5,7 @@
 
 static EnumDef attribTypeEnum = {
     .enumName = "AttribType",
-    .values = (EnumValue[]) {
+    .values = (EnumValue[]){
         {"FLOAT", GL_FLOAT},
         {"HALF_FLOAT", GL_HALF_FLOAT},
         {"DOUBLE", GL_DOUBLE},
@@ -15,22 +15,26 @@ static EnumDef attribTypeEnum = {
         {"UNSIGNED_SHORT", GL_UNSIGNED_SHORT},
         {"INT", GL_INT},
         {"UNSIGNED_INT", GL_UNSIGNED_INT},
-        {0}},
+        {0},
+    },
 };
 
 static ModuleInfo modInfo = {
     .def = {
         PyModuleDef_HEAD_INIT,
         .m_name = "pygl.vertex_array",
-        .m_size = -1},
-    .enums = (EnumDef*[]) {
+        .m_size = -1,
+    },
+    .enums = (EnumDef *[]){
         &attribTypeEnum,
-        NULL},
-    .types = (PyTypeObject*[]) {
+        NULL,
+    },
+    .types = (PyTypeObject *[]){
         &pyVertexInputType,
         &pyVertexDescriptorType,
         &pyVertexArrayType,
-        NULL},
+        NULL,
+    },
 };
 
 PyMODINIT_FUNC PyInit_vertex_array()
