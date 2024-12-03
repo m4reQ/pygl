@@ -33,7 +33,7 @@ jobs:
       - name: Configure and build cmake
         uses: threeal/cmake-action@v2.0.0
         with:
-          build-dir: build/cmake
+          build-dir: ${{ matrix.os == 'ubuntu-latest' && build/cmake/${{ env.PYGL_BUILD_TYPE }} || build/cmake }}
           options: |
             CMAKE_BUILD_TYPE=$PYGL_BUILD_TYPE
             CMAKE_VERBOSE_MAKEFILE=ON
