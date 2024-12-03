@@ -111,12 +111,14 @@ static PyObject *vec_cross(_SELF, _TYPE *other)
 {
     _VEC_CHECK(other);
 
+#if VEC_LEN != 4
 #if VEC_LEN == 2
     float result = _GLM_INVOKE(cross, self->data, other->data);
     return PyFloat_FromDouble((double)result);
 #else
     _NEW(result);
     _GLM_INVOKE(cross, self->data, other->data, result->data);
+#endif
 
     return (PyObject *)result;
 #endif
