@@ -42,7 +42,7 @@ jobs:
       - name: Create wheel
         id: wheel
         run: |
-          echo "WHL_FILEPATH=$(python -m easywheel -B build/cmake)" >> $GITHUB_OUTPUT
+          echo "WHL_FILEPATH=$(python -m easywheel -B build/cmake)" >> $env:GITHUB_OUTPUT
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
