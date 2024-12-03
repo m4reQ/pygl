@@ -30,13 +30,21 @@ jobs:
           python -m pip install --upgrade pip
           python -m pip install pyyaml packaging
 
-      - name: Configure and build cmake
+      - name: Configure and build cmake (Ubuntu)
+        if: matrix.os == 'ubuntu-latest'
         uses: threeal/cmake-action@v2.0.0
         with:
-          if: matrix.os == 'ubuntu-latest'
-            build-dir: build/cmake/${{ env.PYGL_BUILD_TYPE }}
-          else:
-            build-dir: build/cmake
+          build-dir: build/cmake/${{ env.PYGL_BUILD_TYPE }}
+          options: |
+            CMAKE_BUILD_TYPE=$PYGL_BUILD_TYPE
+            CMAKE_VERBOSE_MAKEFILE=ON
+          build-args: --config ${{ env.PYGL_BUILD_TYPE }}
+
+      - name: Configure and build cmake (Windows)
+        if: matrix.os == 'windows-latest'
+        uses: threeal/cmake-action@v2.0.0
+        with:
+          build-dir: build/cmake
           options: |
             CMAKE_BUILD_TYPE=$PYGL_BUILD_TYPE
             CMAKE_VERBOSE_MAKEFILE=ON
