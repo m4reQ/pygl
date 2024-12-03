@@ -98,7 +98,7 @@ static bool read_whole_file(FILE *file, char **outData, size_t *outSize)
             buffer = PyMem_Realloc(buffer, bufSize);
         }
 
-        size_t readCurrent = fread_s(buffer, bufSize, sizeof(char), bufSize, file);
+        size_t readCurrent = fread(buffer, sizeof(char), bufSize, file);
         if (readCurrent < READ_FILE_CHUNK_SIZE)
         {
             read += readCurrent;
@@ -120,9 +120,9 @@ static const char *get_shader_stage_source(PyShaderStage *stage, size_t *sourceL
     if (stage->fromSource)
         return PyUnicode_AsUTF8AndSize(stage->pyFilepath, sourceLength);
 
-    FILE *sourceFile = NULL;
+    FILE *sourceFile = fopen(PyUnicode_AsUTF8(stage->pyFilepath), "r");
     THROW_IF(
-        fopen_s(&sourceFile, PyUnicode_AsUTF8(stage->pyFilepath), "r"),
+        sourceFile == NULL,
         PyExc_RuntimeError,
         "Couldn't open shader stage source file.",
         NULL);
