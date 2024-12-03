@@ -34,7 +34,7 @@ jobs:
         if: matrix.os == 'ubuntu-latest'
         uses: threeal/cmake-action@v2.0.0
         with:
-          build-dir: build/cmake/${{ env.PYGL_BUILD_TYPE }}
+          build-dir: ./build/cmake/${{ env.PYGL_BUILD_TYPE }}
           options: |
             CMAKE_BUILD_TYPE=$PYGL_BUILD_TYPE
             CMAKE_VERBOSE_MAKEFILE=ON
@@ -44,7 +44,7 @@ jobs:
         if: matrix.os == 'windows-latest'
         uses: threeal/cmake-action@v2.0.0
         with:
-          build-dir: build/cmake
+          build-dir: ./build/cmake
           options: |
             CMAKE_BUILD_TYPE=$PYGL_BUILD_TYPE
             CMAKE_VERBOSE_MAKEFILE=ON
@@ -53,7 +53,7 @@ jobs:
       - name: Create wheel
         id: wheel
         run: |
-          echo "WHL_FILEPATH=$(python -m easywheel -B build/cmake)" >> $env:GITHUB_OUTPUT
+          echo "WHL_FILEPATH=$(python ./easywheel.py -B ./build/cmake)" >> $env:GITHUB_OUTPUT
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
