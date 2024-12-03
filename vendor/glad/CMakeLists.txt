@@ -10,3 +10,7 @@ else()
 endif()
 
 target_include_directories(glad PUBLIC "include")
+
+if (CMAKE_C_COMPILER_ID MATCHES "GNU")
+    target_compile_options(glad PUBLIC -fpic)
+endif()
