@@ -67,7 +67,7 @@ class Package:
             data.get('platforms', []),
             data.get('is_pure', True))
 
-    def build(self, build_dir: str | None = None) -> str:
+    def build(self, build_dir: str | None = None, output_info: bool = False) -> str:
         compat_tag = _create_compat_tag(self.python_required, self.is_pure)
         whl_name = f'{self.name}-{self.version}-{compat_tag}'
 
@@ -152,11 +152,16 @@ class Package:
             for copied_file in copied_files:
                 whl_file.write(copied_file, arcname=os.path.relpath(copied_file, pkg_dir))
 
-        data = {
-            'whl_filepath': _normalize_path(whl_filepath),
-            'whl_filename': os.path.basename(whl_filepath)
-        }
-        return json.dumps(data)
+        whl_filepath = _normalize_path(whl_filepath)
+        whl_filename = os.path.basename(whl_filepath)
+
+        if output_info:
+            data = {
+                'whl_filepath': whl_filepath,
+                'whl_filename': whl_filename}
+            return json.dumps(data)
+
+        return whl_filename
 
 def _normalize_path(filepath: str) -> str:
     return filepath.lstrip('./').replace('\\', '/')
@@ -256,6 +261,11 @@ if __name__ == '__main__':
         required=False,
         dest='build',
         help='Build directory to which all intermediate files will be generated.')
+    parser.add_argument(
+        '-I',
+        default=False,
+        dest='output_info',
+        help='If used, the command will output more detailed informations about the build process in the JSON format. Otherwise command will only output created file name.')
 
     args = parser.parse_args()
 
@@ -265,6 +275,6 @@ if __name__ == '__main__':
     pkg = Package.from_file('package.yml')
 
     os.chdir(old_working_dir)
-    whl_info = pkg.build(args.build)
+    whl_info = pkg.build(args.build, args.output_info)
 
     print(whl_info)

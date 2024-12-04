@@ -1,0 +1,68 @@
+name: Build Windows
+
+on:
+  release:
+    types: [created]
+
+  push:
+    branches: ci-setup # TODO Change to `master` when branch completed
+    paths-ignore:
+      - 'tests/**'
+      - '.gitignore'
+      - '*.MD'
+      - '.github/workflows/*.yml'
+      - '!.github/workflows/build-windows.yml'
+
+  pull_request:
+    branches: master
+    paths-ignore:
+      - 'tests/**'
+      - '.gitignore'
+      - '*.MD'
+      - '.github/workflows/*.yml'
+      - '!.github/workflows/build-windows.yml'
+
+jobs:
+  build:
+    runs-on: 'windows-latest'
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ['3.13', '3.12']
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: recurse
+
+      - name: Set up python
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install build dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install pyyaml packaging
+
+      - name: Configure and build cmake
+        uses: threeal/cmake-action@v2.0.0
+        with:
+          build-dir: "build/cmake"
+          options: |
+            CMAKE_BUILD_TYPE=Release
+            CMAKE_VERBOSE_MAKEFILE=ON
+          build-args: --config Release
+
+      - name: Create wheel
+        id: wheel
+        shell: pwsh
+        run: |
+          echo "whl-filename=$(python -m easywheel -B build" >> $env:GITHUB_OUTPUT
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ steps.wheel.outputs.whl-filename }}
+          path: "./build/${{ steps.wheel.outputs.whl-filename }}"
