@@ -58,22 +58,17 @@ jobs:
         run: |
           echo "whlInfoData=$(python -m easywheel -B ${{env.PYGL_CMAKE_DIR}})" >> $env:GITHUB_ENV
 
-      - name: Parse wheel info (1)
+      - name: Parse wheel info
         shell: pwsh
         run: |
-          echo "whlInfo=${{ fromJson(env.whlInfoData) }}" >> $env:GITHUB_ENV
-
-      - name: Parse wheel info (2)
-        shell: pwsh
-        run: |
-          echo "WHL_FILEPATH=${{ env.whlInfo.whl_filepath }}" >> $env:GITHUB_OUTPUT
-          echo "WHL_FILENAME=${{ env.whlInfo.whl_filename }}" >> $env:GITHUB_OUTPUT
+          echo "WHL_FILEPATH=${{ fromJson(env.whlInfoData).whl_filepath }}" >> $env:GITHUB_ENV
+          echo "WHL_FILENAME=${{ fromJson(env.whlInfoData).whl_filename }}" >> $env:GITHUB_ENV
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ steps.wheel.outputs.WHL_FILENAME }}
-          path: ${{ steps.wheel.outputs.WHL_FILEPATH }}
+          name: ${{ env.WHL_FILENAME }}
+          path: ${{ env.WHL_FILEPATH }}
 
   # publish:
   #   runs-on: ubuntu-latest
