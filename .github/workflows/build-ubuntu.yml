@@ -59,7 +59,7 @@ jobs:
         id: wheel
         shell: pwsh
         run: |
-          echo "whl-filename=$(python -m easywheel -B build" >> $env:GITHUB_OUTPUT
+          echo "whl-filename=$(python -m easywheel -B build)" >> $env:GITHUB_OUTPUT
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
