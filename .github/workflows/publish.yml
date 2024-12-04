@@ -6,6 +6,7 @@ on:
 
 env:
   PYGL_BUILD_TYPE: Release
+  PYGL_CMAKE_DIR: "./build/cmake"
 
 jobs:
   build:
@@ -14,79 +15,67 @@ jobs:
       fail-fast: false
       matrix:
         os: [ windows-latest, ubuntu-latest ]
+        python-version: ['3.10', '3.11', '3.12']
 
     steps:
-      - uses: actions/checkout@v2
+      - name: Setup environment
+        shell: pwsh
+        run: |
+          $env:PYGL_BUILD_TYPE = "Release"
+
+      - name: Setup environment (Ubuntu)
+        if: matrix.os == 'ubuntu-latest'
+        shell: pwsh
+        run: |
+          $env:PYGL_CMAKE_DIR = "./build/cmake/${{ env.PYGL_BUILD_TYPE }}"
+
+      - name: Checkout
+        uses: actions/checkout@v3
         with:
           submodules: recursive
 
       - name: Set up python
-        uses: actions/setup-python@v2
+        uses: actions/setup-python@v4
         with:
-          python-version: '3.12'
+          python-version: ${{ matrix.python-version }}
 
       - name: Install build dependencies
         run: |
           python -m pip install --upgrade pip
           python -m pip install pyyaml packaging
 
-      - name: Configure and build cmake (Ubuntu)
-        if: matrix.os == 'ubuntu-latest'
+      - name: Configure and build cmake
         uses: threeal/cmake-action@v2.0.0
         with:
-          build-dir: ./build/cmake/${{ env.PYGL_BUILD_TYPE }}
+          build-dir: ${{ env.PYGL_CMAKE_DIR }}
           options: |
-            CMAKE_BUILD_TYPE=$PYGL_BUILD_TYPE
+            CMAKE_BUILD_TYPE=${{ env.PYGL_BUILD_TYPE }}
             CMAKE_VERBOSE_MAKEFILE=ON
           build-args: --config ${{ env.PYGL_BUILD_TYPE }}
 
-      - name: Configure and build cmake (Windows)
-        if: matrix.os == 'windows-latest'
-        uses: threeal/cmake-action@v2.0.0
-        with:
-          build-dir: ./build/cmake
-          options: |
-            CMAKE_BUILD_TYPE=$PYGL_BUILD_TYPE
-            CMAKE_VERBOSE_MAKEFILE=ON
-          build-args: --config ${{ env.PYGL_BUILD_TYPE }}
-
-      - name: Create wheel (Windows)
-        if: matrix.os == 'windows-latest'
-        id: wheel-windows
+      - name: Create wheel
+        id: wheel
+        shell: pwsh
+        env:
+          whlInfo: ""
         run: |
-          echo "whl_json=$(python -m easywheel -B ./build/cmake)" >> $env:GITHUB_ENV
-          echo "WHL_FILEPATH=${{ fromJson(env.whl_json).whl_filepath }}" >> $env:GITHUB_OUTPUT
-          echo "WHL_FILENAME=${{ fromJson(env.whl_json).whl_filename }}" >> $env:GITHUB_OUTPUT
+          $env:whlInfo = (python -m easywheel -B ${{ env.PYGL_CMAKE_DIR }}) | ConvertFrom-Json
+          echo "WHL_FILEPATH=${{ env.whlInfo.whl_filepath }}" >> $env:GITHUB_OUTPUT
+          echo "WHL_FILENAME=${{ env.whlInfo.whl_filename }}" >> $env:GITHUB_OUTPUT
 
-      - name: Create wheel (Ubuntu)
-        if: matrix.os == 'ubuntu-latest'
-        id: wheel-ubuntu
-        run: |
-          echo "whl_json=$(python -m easywheel -B ./build/cmake)" >> $GITHUB_ENV
-          echo "WHL_FILEPATH=${{ fromJson(env.whl_json).whl_filepath }}" >> $GITHUB_OUTPUT
-          echo "WHL_FILENAME=${{ fromJson(env.whl_json).whl_filename }}" >> $GITHUB_OUTPUT
-
-      - name: Upload artifacts (Windows)
-        if: matrix.os == 'windows-latest'
+      - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ steps.wheel-windows.outputs.WHL_FILENAME }}
-          path: ${{ steps.wheel-windows.outputs.WHL_FILEPATH }}
+          name: ${{ steps.wheel.outputs.WHL_FILENAME }}
+          path: ${{ steps.wheel.outputs.WHL_FILEPATH }}
 
-      - name: Upload artifacts (Ubuntu)
-        if: matrix.os == 'ubuntu-latest'
-        uses: actions/upload-artifact@v4
-        with:
-          name: ${{ steps.wheel-ubuntu.outputs.WHL_FILENAME }}
-          path: ${{ steps.wheel-ubuntu.outputs.WHL_FILEPATH }}
-
-  publish:
-    runs-on: ubuntu-latest
-    needs: build
-    steps:
-      - name: Download artifacts
-        uses: actions/download-artifact@v3
-        with:
-          path: artifacts
+  # publish:
+  #   runs-on: ubuntu-latest
+  #   needs: build
+  #   steps:
+  #     - name: Download artifacts
+  #       uses: actions/download-artifact@v3
+  #       with:
+  #         path: ./dist
 
 
