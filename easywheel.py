@@ -267,4 +267,4 @@ if __name__ == '__main__':
     os.chdir(old_working_dir)
     whl_info = pkg.build(args.build)
 
-    print(whl_filepath)
+    print(whl_info)
