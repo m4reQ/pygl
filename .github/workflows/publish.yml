@@ -56,13 +56,9 @@ jobs:
       - name: Create wheel
         id: wheel
         shell: pwsh
-        env:
-          whlInfoData: ""
-          whlInfo: ""
         run: |
-          $env:whlInfoData = python -m easywheel -B ${{ env.PYGL_CMAKE_DIR }}
-          $env:whlInfo = ${{ fromJson(env.whlInfoData) }}
-
+          echo "whlInfoData=$(python -m easywheel -B ${{env.PYGL_CMAKE_DIR}})" >> $env:GITHUB_ENV
+          echo "whlInfo=${{ fromJson(env.whlInfoData) }}" >> $env:GITHUB_ENV
           echo "WHL_FILEPATH=${{ env.whlInfo.whl_filepath }}" >> $env:GITHUB_OUTPUT
           echo "WHL_FILENAME=${{ env.whlInfo.whl_filename }}" >> $env:GITHUB_OUTPUT
 
