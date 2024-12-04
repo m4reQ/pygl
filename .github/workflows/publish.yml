@@ -54,11 +54,18 @@ jobs:
           build-args: --config ${{ env.PYGL_BUILD_TYPE }}
 
       - name: Create wheel
-        id: wheel
         shell: pwsh
         run: |
           echo "whlInfoData=$(python -m easywheel -B ${{env.PYGL_CMAKE_DIR}})" >> $env:GITHUB_ENV
+
+      - name: Parse wheel info (1)
+        shell: pwsh
+        run: |
           echo "whlInfo=${{ fromJson(env.whlInfoData) }}" >> $env:GITHUB_ENV
+
+      - name: Parse wheel info (2)
+        shell: pwsh
+        run: |
           echo "WHL_FILEPATH=${{ env.whlInfo.whl_filepath }}" >> $env:GITHUB_OUTPUT
           echo "WHL_FILENAME=${{ env.whlInfo.whl_filename }}" >> $env:GITHUB_OUTPUT
 
