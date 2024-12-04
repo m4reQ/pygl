@@ -1,26 +1,7 @@
 name: Build Ubuntu
 
 on:
-  release:
-    types: [created]
-
-  push:
-    branches: ci-setup # TODO Change to `master` when branch completed
-    paths-ignore:
-      - 'tests/**'
-      - '.gitignore'
-      - '*.MD'
-      - '.github/workflows/*.yml'
-      - '!.github/workflows/build-windows.yml'
-
-  pull_request:
-    branches: master
-    paths-ignore:
-      - 'tests/**'
-      - '.gitignore'
-      - '*.MD'
-      - '.github/workflows/*.yml'
-      - '!.github/workflows/build-windows.yml'
+  workflow_call
 
 env:
   PYGL_BUILD_TYPE: Release

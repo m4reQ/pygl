@@ -1,0 +1,31 @@
+name: Publish
+
+on:
+  release:
+    types: [created]
+
+  push:
+    branches: ci-setup # TODO Change to `master` when branch completed
+    paths-ignore:
+      - 'tests/**'
+      - '.gitignore'
+      - '*.MD'
+      - '.github/workflows/*.yml'
+      - '!.github/workflows/build-windows.yml'
+
+  pull_request:
+    branches: ci-setup
+    paths-ignore:
+      - 'tests/**'
+      - '.gitignore'
+      - '*.MD'
+      - '.github/workflows/*.yml'
+      - '!.github/workflows/build-windows.yml'
+
+jobs:
+  build-windows:
+    uses: ./.github/workflows/build-windows.yml
+
+  build-ubuntu:
+    uses: ./.github/workflows/build-ubuntu.yml
+
