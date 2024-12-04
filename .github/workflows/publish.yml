@@ -6,7 +6,6 @@ on:
 
 env:
   PYGL_BUILD_TYPE: Release
-  PYGL_CMAKE_DIR: "./build/cmake"
 
 jobs:
   build:
@@ -18,6 +17,12 @@ jobs:
         python-version: ['3.10', '3.11', '3.12']
 
     steps:
+      - name: Setup environment (Windows)
+        if: matrix.os == 'windows-latest'
+        shell: pwsh
+        run: |
+          echo "PYGL_CMAKE_DIR=./build/cmake" >> $GITHUB_ENV
+
       - name: Setup environment (Ubuntu)
         if: matrix.os == 'ubuntu-latest'
         shell: pwsh
@@ -52,9 +57,12 @@ jobs:
         id: wheel
         shell: pwsh
         env:
+          whlInfoData: ""
           whlInfo: ""
         run: |
-          echo "whlInfo=$((python -m easywheel -B ${{ env.PYGL_CMAKE_DIR }}) | ConvertFrom-Json)" >> $GITHUB_ENV
+          $env:whlInfoData = python -m easywheel -B ${{ env.PYGL_CMAKE_DIR }}
+          $env:whlInfo = ${{ fromJson(env.whlInfoData) }}
+
           echo "WHL_FILEPATH=${{ env.whlInfo.whl_filepath }}" >> $env:GITHUB_OUTPUT
           echo "WHL_FILENAME=${{ env.whlInfo.whl_filename }}" >> $env:GITHUB_OUTPUT
 
