@@ -18,16 +18,11 @@ jobs:
         python-version: ['3.10', '3.11', '3.12']
 
     steps:
-      - name: Setup environment
-        shell: pwsh
-        run: |
-          $env:PYGL_BUILD_TYPE = "Release"
-
       - name: Setup environment (Ubuntu)
         if: matrix.os == 'ubuntu-latest'
         shell: pwsh
         run: |
-          $env:PYGL_CMAKE_DIR = "./build/cmake/${{ env.PYGL_BUILD_TYPE }}"
+          echo "PYGL_CMAKE_DIR=./build/cmake/${{ env.PYGL_BUILD_TYPE }}" >> $GITHUB_ENV
 
       - name: Checkout
         uses: actions/checkout@v3
@@ -59,7 +54,7 @@ jobs:
         env:
           whlInfo: ""
         run: |
-          $env:whlInfo = (python -m easywheel -B ${{ env.PYGL_CMAKE_DIR }}) | ConvertFrom-Json
+          echo "whlInfo=$((python -m easywheel -B ${{ env.PYGL_CMAKE_DIR }}) | ConvertFrom-Json)" >> $GITHUB_ENV
           echo "WHL_FILEPATH=${{ env.whlInfo.whl_filepath }}" >> $env:GITHUB_OUTPUT
           echo "WHL_FILENAME=${{ env.whlInfo.whl_filename }}" >> $env:GITHUB_OUTPUT
 
