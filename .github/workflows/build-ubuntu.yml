@@ -22,6 +22,9 @@ on:
       - '.github/workflows/*.yml'
       - '!.github/workflows/build-windows.yml'
 
+env:
+  PYGL_BUILD_TYPE: Release
+
 jobs:
   build:
     runs-on: 'ubuntu-latest'
