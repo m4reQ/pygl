@@ -2,240 +2,305 @@ import argparse
 import dataclasses
 import glob
 import hashlib
+import itertools
+import json
 import os
 import re
 import shutil
+import sys
 import tempfile
 import typing as t
 import zipfile
 
-import yaml
 from packaging import tags
 
 METADATA_VERSION = '2.1'
 WHL_VERSION = '1.0'
 
 @dataclasses.dataclass
-class _FileTag:
+class _FileRecord:
     filepath: str
     sha256_hash: str
     size: int
 
-@dataclasses.dataclass
-class _PackagedFile:
-    origin: str
-    destination: str
+    @classmethod
+    def from_filepath(cls, filepath: str, parent_relative: bool = False) -> t.Self:
+        with open(filepath, 'rb') as f:
+            data = f.read()
 
-    def __init__(self, origin: str, destination: str | None = None) -> None:
-        self.origin = _normalize_path(origin)
-        self.destination = _normalize_path(destination) if destination is not None else self.origin
+        if parent_relative:
+            filepath = _get_filepath_parent_relative(filepath)
+
+        return cls(
+            filepath=_normalize_path(filepath),
+            sha256_hash=hashlib.sha256(data).hexdigest(),
+            size=len(data))
+
+@dataclasses.dataclass
+class _FileDef:
+    origin: str
+    destination: str | None = None
+
+@dataclasses.dataclass
+class Metadata:
+    summary: str = ''
+    license: str = ''
+    author: str = ''
+    urls: dict[str, str] = dataclasses.field(default_factory=dict)
+    platforms: list[str] = dataclasses.field(default_factory=list)
+    classifiers: list[str] = dataclasses.field(default_factory=list)
+    keywords: list[str] = dataclasses.field(default_factory=list)
+
+    @classmethod
+    def from_dict(cls, data: t.Mapping[str, t.Any]) -> t.Self:
+        return cls(
+            summary=data.get('summary', ''),
+            license=data.get('license', ''),
+            author=data.get('author', ''),
+            urls=data.get('urls', {}),
+            platforms=data.get('platforms', []),
+            classifiers=data.get('classifiers', []),
+            keywords=data.get('keywords', []))
 
 @dataclasses.dataclass
 class Package:
     name: str
+    files: list[_FileDef]
+
+    @classmethod
+    def from_dict(cls, data: t.Mapping[str, t.Any]) -> t.Self:
+        return cls(
+            data['name'],
+            _process_file_defs(data['files']))
+
+@dataclasses.dataclass
+class Project:
+    name: str
     version: str
-    python_required: str
-    files: list[_PackagedFile]
-    projects: list[str]
-    authors: list[str] = dataclasses.field(default_factory=list)
-    license: str = ''
-    summary: str = ''
-    urls: dict[str, str] = dataclasses.field(default_factory=dict)
-    classifiers: list[str] = dataclasses.field(default_factory=list)
-    keywords: list[str] = dataclasses.field(default_factory=list)
-    platforms: list[str] = dataclasses.field(default_factory=list)
+    python_version: str
+    packages: list[Package]
+    metadata: Metadata | None = None
     is_pure: bool = True
+    use_stable_abi: bool = False
+    whl_name_override: str | None = None
 
     @classmethod
     def from_file(cls, filepath: str) -> t.Self:
         with open(filepath, 'r') as f:
-            data: dict[str, t.Any] = yaml.safe_load(f)
+            data: dict[str, t.Any] = json.load(f)
+
+        metadata: Metadata | None = None
+        if (metadata_data := data.get('metadata', None)) is not None:
+            metadata = Metadata.from_dict(metadata_data)
+
+        packages = [Package.from_dict(x) for x in data['packages']]
+
+        is_pure = True
+        use_stable_abi = False
+        whl_name_override: str | None = None
+        if (build_data := data.get('build', None)) is not None:
+            is_pure = build_data.get('is_pure', True)
+            use_stable_abi = build_data.get('use_stable_api', False)
+            whl_name_override = build_data.get('whl_name_override', None)
+        else:
+            is_pure = not any(
+                os.path.splitext(file.origin)[1] in ('.pyd', '.dll', '.so')
+                for file in itertools.chain(*(x.files for x in packages)))
 
         return cls(
-            data['name'],
-            data['version'],
-            data['python'],
-            _gather_project_files(data['files']),
-            data['projects'],
-            data.get('authors', []),
-            _process_item(data.get('license', None)),
-            _process_item(data.get('summary', None)),
-            data.get('urls', []),
-            data.get('classifiers', []),
-            data.get('keywords', []),
-            data.get('platforms', []),
-            data.get('is_pure', True))
+            name=data['name'],
+            version=data['version'],
+            python_version=data['python'],
+            packages=packages,
+            metadata=metadata,
+            is_pure=is_pure,
+            use_stable_abi=use_stable_abi,
+            whl_name_override=whl_name_override)
 
-    def build(self, build_dir: str | None = None) -> str:
-        compat_tag = _create_compat_tag(self.python_required, self.is_pure)
-        whl_name = f'{self.name}-{self.version}-{compat_tag}'
+    def get_compat_tag(self) -> str:
+        if self.is_pure:
+            version_str = f'py{sys.version_info.major}{sys.version_info.minor}'
+            tag = next(
+                x
+                for x in tags.sys_tags()
+                if x.abi == 'none' and x.platform == 'any' and x.interpreter == version_str)
+            return str(tag)
 
-        if build_dir is None:
-            build_dir = tempfile.gettempdir()
+        version_str = f'cp{sys.version_info.major}{sys.version_info.minor}'
+        required_abi = f'abi{sys.version_info.major}' if self.use_stable_abi else version_str
+        tag = next(
+            x
+            for x in tags.sys_tags()
+            if x.abi == required_abi and x.platform != 'any' and x.interpreter == version_str)
 
-        pkg_dir = os.path.join(build_dir, whl_name)
-        dist_info_dir = os.path.join(pkg_dir, f'{self.name}-{self.version}.dist-info')
+        return str(tag)
 
-        metadata_filepath = os.path.join(dist_info_dir, 'METADATA')
+    def get_whl_name(self, compat_tag: str | None = None) -> str:
+        if self.whl_name_override is not None:
+            return self.whl_name_override
+
+        compat_tag = compat_tag or self.get_compat_tag()
+        return f'{self.name}-{self.version}-{compat_tag}'
+
+    def write_metadata(self, metadata_filepath: str) -> None:
+        assert self.metadata is not None
+
         os.makedirs(os.path.dirname(metadata_filepath), exist_ok=True)
+
+        metadata = self.metadata
 
         with open(metadata_filepath, 'w+') as f:
             f.write(f'Metadata-Version: {METADATA_VERSION}\n')
             f.write(f'Name: {self.name}\n')
             f.write(f'Version: {self.version}\n')
-            f.write(f'Summary: {self.summary}\n')
+            f.write(f'Summary: {metadata.summary}\n')
+            f.write(f'Author: {metadata.author}\n')
 
-            if (home_url := self.urls.get('home', None)) is not None:
-                f.write(f'Home-page: {home_url}\n')
+            if len(metadata.keywords) != 0:
+                f.write(f'Keywords: {','.join(metadata.keywords)}\n')
 
-            for author in self.authors:
-                f.write(f'Author: {author}\n')
-
-            f.write(f'Keywords: {' '.join(self.keywords)}\n')
-
-            for classifier in self.classifiers:
+            for classifier in metadata.classifiers:
                 f.write(f'Classifier: {classifier}\n')
 
-        top_level_filepath = os.path.join(dist_info_dir, 'top_level.txt')
+            for name, url in metadata.urls.items():
+                f.write(f'Project-URL: {name}, {url}\n')
+
+    def write_top_level(self, top_level_filepath: str) -> None:
         os.makedirs(os.path.dirname(top_level_filepath), exist_ok=True)
 
         with open(top_level_filepath, 'w+') as f:
-            for project in self.projects:
-                f.write(f'{project}\n')
+            for package in self.packages:
+                f.write(f'{package.name}\n')
 
-        wheel_filepath = os.path.join(dist_info_dir, 'WHEEL')
+    def write_wheel(self, wheel_filepath: str, compat_tag: str | None = None) -> None:
+        compat_tag = compat_tag or self.get_compat_tag()
+
         os.makedirs(os.path.dirname(wheel_filepath), exist_ok=True)
 
         with open(wheel_filepath, 'w+') as f:
             f.write(f'Wheel-Version: {WHL_VERSION}\n')
             f.write('Generator: easywheel\n')
-            f.write(f'Root-Is-Purelib: {self.is_pure}\n') # TODO detect if only python files are present
+            f.write(f'Root-Is-Purelib: {self.is_pure}\n')
             f.write(f'Tag: {compat_tag}\n')
 
-        file_tags: list[_FileTag] = [
-            _create_file_tag(_PackagedFile(metadata_filepath)),
-            _create_file_tag(_PackagedFile(top_level_filepath)),
-            _create_file_tag(_PackagedFile(wheel_filepath))]
-        for file in self.files:
-            file_tags.append(_create_file_tag(file))
-
-        record_filepath = os.path.join(dist_info_dir, 'RECORD')
+    def write_record(self,
+                     metadata_filepath: str,
+                     top_level_filepath: str,
+                     wheel_filepath: str,
+                     record_filepath: str) -> None:
         os.makedirs(os.path.dirname(record_filepath), exist_ok=True)
 
+        records = [
+            _FileRecord.from_filepath(x.origin)
+            for x in itertools.chain(*(x.files for x in self.packages))]
+
+        records.append(_FileRecord.from_filepath(metadata_filepath))
+        records.append(_FileRecord.from_filepath(top_level_filepath))
+        records.append(_FileRecord.from_filepath(wheel_filepath))
+
         with open(record_filepath, 'w+') as f:
-            for tag in file_tags:
-                f.write(f'{tag.filepath},sha256={tag.sha256_hash},{tag.size}\n')
+            for record in records:
+                f.write(f'{record.filepath},sha256={record.sha256_hash},{record.size}\n')
 
             f.write(f'{_normalize_path(record_filepath)},,')
 
-        copied_files = list[str]()
-        for file in self.files:
-            dirname = os.path.dirname(file.destination)
-            if dirname != '':
-                os.makedirs(os.path.join(pkg_dir, dirname), exist_ok=True)
+    def write_archive(self,
+                      metadata_filepath: str,
+                      top_level_filepath: str,
+                      wheel_filepath: str,
+                      record_filepath: str,
+                      whl_filepath: str,
+                      pkg_dir: str) -> None:
+        with zipfile.ZipFile(whl_filepath, 'x') as archive:
+            archive.write(metadata_filepath, arcname=os.path.relpath(metadata_filepath, pkg_dir))
+            archive.write(top_level_filepath, arcname=os.path.relpath(top_level_filepath, pkg_dir))
+            archive.write(record_filepath, arcname=os.path.relpath(record_filepath, pkg_dir))
+            archive.write(wheel_filepath, arcname=os.path.relpath(wheel_filepath, pkg_dir))
 
-            dst_filepath = os.path.join(pkg_dir, file.destination)
-            shutil.copyfile(file.origin, dst_filepath)
+            for package in self.packages:
+                for file in package.files:
+                    archive.write(file.origin, file.destination)
 
-            copied_files.append(dst_filepath)
+    def build(self, build_dir: str | None = None) -> str:
+        if build_dir is None:
+            build_dir = tempfile.gettempdir()
+
+        compat_tag = self.get_compat_tag()
+        whl_name = self.get_whl_name(compat_tag)
+
+        pkg_dir = os.path.join(build_dir, whl_name)
+        dist_info_dir = os.path.join(pkg_dir, f'{self.name}-{self.version}.dist-info')
+
+        if self.metadata is not None:
+            metadata_filepath = os.path.join(dist_info_dir, 'METADATA')
+            self.write_metadata(metadata_filepath)
+
+        top_level_filepath = os.path.join(dist_info_dir, 'top_level.txt')
+        self.write_top_level(top_level_filepath)
+
+        wheel_filepath = os.path.join(dist_info_dir, 'WHEEL')
+        self.write_wheel(wheel_filepath)
+
+        record_filepath = os.path.join(dist_info_dir, 'RECORD')
+        self.write_record(
+            metadata_filepath,
+            top_level_filepath,
+            wheel_filepath,
+            record_filepath)
 
         whl_filepath = os.path.join(build_dir, f'{whl_name}.whl')
         os.makedirs(os.path.dirname(whl_filepath), exist_ok=True)
 
-        with zipfile.ZipFile(whl_filepath, 'x') as whl_file:
-            whl_file.write(metadata_filepath, arcname=os.path.relpath(metadata_filepath, pkg_dir))
-            whl_file.write(top_level_filepath, arcname=os.path.relpath(top_level_filepath, pkg_dir))
-            whl_file.write(record_filepath, arcname=os.path.relpath(record_filepath, pkg_dir))
-            whl_file.write(wheel_filepath, arcname=os.path.relpath(wheel_filepath, pkg_dir))
+        self.write_archive(
+            metadata_filepath,
+            top_level_filepath,
+            wheel_filepath,
+            record_filepath,
+            whl_filepath,
+            pkg_dir)
 
-            for copied_file in copied_files:
-                whl_file.write(copied_file, arcname=os.path.relpath(copied_file, pkg_dir))
-
-        return _normalize_path(whl_filepath)
+        return whl_filepath
 
 def _normalize_path(filepath: str) -> str:
     return filepath.lstrip('./').replace('\\', '/')
 
-def _create_file_tag(file: _PackagedFile) -> _FileTag:
-    with open(file.origin, 'rb') as f:
-        content = f.read()
+def _get_filepath_parent_relative(filepath: str) -> str:
+    filename = os.path.basename(filepath)
+    parent = os.path.basename(os.path.dirname(filepath))
 
-    return _FileTag(
-        file.destination,
-        hashlib.sha256(content).hexdigest(),
-        len(content))
+    return os.path.join(parent, filename)
 
-def _process_item(filepath_or_str: str | None) -> str:
-    if filepath_or_str is None:
-        return ''
+def _process_file_defs(file_defs: list[str]) -> list[_FileDef]:
+    result = list[_FileDef]()
 
-    if filepath_or_str.startswith('!f'):
-        filepath_or_str = filepath_or_str.lstrip('!f').strip()
-        with open(filepath_or_str, 'r') as f:
-            return f.read()
+    for _def in file_defs:
+        env_replace_candidates = re.findall(r'\$(.+?)\$', _def)
+        for candidate in env_replace_candidates:
+            try:
+                replacement = os.environ[candidate]
+            except KeyError:
+                raise RuntimeError(f'Could not find environment variable {candidate} for use as replacement in "{_def}"')
 
-    return filepath_or_str
+            _def = _def.replace(f'${candidate}$', replacement)
 
-def _gather_project_files(candidates: list[str]) -> list[_PackagedFile]:
-    files = list[_PackagedFile]()
-
-    for candidate in candidates:
-        env_replaces = re.findall(r'\$(.+?)\$', candidate)
-        if len(env_replaces) != 0:
-            for env_replace in env_replaces:
-                try:
-                    replacement = os.environ[env_replace].strip()
-                except KeyError:
-                    raise RuntimeError(f'Failed to find replacement environment variable "{env_replace}"')
-
-                candidate = candidate.replace(f'${env_replace}$', replacement)
-
-        if candidate.startswith('!g'):
-            if ':' in candidate:
+        if _def.startswith('!g'):
+            if ':' in _def:
                 raise RuntimeError('Cannot use destination filepath replacement with glob expressions.')
 
-            candidate = candidate.lstrip('!g').strip()
+            _def = _def[2:].strip()
+            result.extend(_FileDef(x) for x in glob.glob(_def))
 
-            files.extend(_PackagedFile(x) for x in glob.glob(candidate, recursive=True))
-        else:
-            filepaths = candidate.split(':')
-            if len(filepaths) == 1:
-                files.append(_PackagedFile(filepaths[0]))
-            else:
-                if len(filepaths) != 2:
-                    raise RuntimeError('Invalid destination filepath replacement, must be in form of <filepath>:<destination_filepath>')
-
-                files.append(
-                    _PackagedFile(
-                        filepaths[0].strip(),
-                        filepaths[1].strip()))
-
-    return files
-
-def _create_compat_tag(python_version: str, is_pure: bool) -> str:
-    require_exact_version = False
-    if python_version.startswith('=='):
-        require_exact_version = True
-        python_version = python_version.lstrip('==')
-    elif python_version.startswith('>='):
-        python_version = python_version.lstrip('>=')
-
-    version = [int(x) for x in python_version.split('.')]
-    if len(version) > 3 or len(version) == 0:
-        raise RuntimeError(f'Invalid python version: {version}')
-
-    if is_pure:
-        supported = tags.compatible_tags(version)
-    else:
-        supported = tags.cpython_tags(version)
-
-    for tag in supported:
-        if not is_pure and tag.abi == 'none' or tag.interpreter == f'cp{version[0]}{version[1]}':
             continue
 
-        return str(tag)
+        if ':' in _def:
+            # TODO Catch multiple : provided
+            origin, dest = _def.split(':')
+            origin = origin.strip()
+            dest = dest.strip()
 
-    raise RuntimeError('Couldn\'t find suitable compatibility tag. This should not happen and is most likely a bug.')
+            result.append(_FileDef(origin, dest))
+
+    return result
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='A simple Python wheel generator')
@@ -251,15 +316,20 @@ if __name__ == '__main__':
         required=False,
         dest='build',
         help='Build directory to which all intermediate files will be generated.')
+    parser.add_argument(
+        '-I',
+        default=False,
+        dest='output_info',
+        help='If used, the command will output more detailed informations about the build process in the JSON format. Otherwise command will only output created file name.')
 
     args = parser.parse_args()
 
     old_working_dir = os.getcwd()
     os.chdir(args.source)
 
-    pkg = Package.from_file('package.yml')
+    project = Project.from_file('package.json')
 
     os.chdir(old_working_dir)
-    whl_filepath = pkg.build(args.build)
+    whl_filepath = project.build(args.build)
 
     print(whl_filepath)
