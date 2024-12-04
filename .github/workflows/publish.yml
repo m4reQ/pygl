@@ -10,8 +10,6 @@ on:
       - 'tests/**'
       - '.gitignore'
       - '*.MD'
-      - '.github/workflows/*.yml'
-      - '!.github/workflows/build-windows.yml'
 
   pull_request:
     branches: ci-setup
@@ -19,8 +17,6 @@ on:
       - 'tests/**'
       - '.gitignore'
       - '*.MD'
-      - '.github/workflows/*.yml'
-      - '!.github/workflows/build-windows.yml'
 
 jobs:
   publish:
