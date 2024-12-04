@@ -21,13 +21,13 @@ jobs:
         if: matrix.os == 'windows-latest'
         shell: pwsh
         run: |
-          echo "PYGL_CMAKE_DIR=./build/cmake" >> $GITHUB_ENV
+          echo "PYGL_CMAKE_DIR=./build/cmake" >> $env:GITHUB_ENV
 
       - name: Setup environment (Ubuntu)
         if: matrix.os == 'ubuntu-latest'
         shell: pwsh
         run: |
-          echo "PYGL_CMAKE_DIR=./build/cmake/${{ env.PYGL_BUILD_TYPE }}" >> $GITHUB_ENV
+          echo "PYGL_CMAKE_DIR=./build/cmake/${{ env.PYGL_BUILD_TYPE }}" >> $env:GITHUB_ENV
 
       - name: Checkout
         uses: actions/checkout@v3
