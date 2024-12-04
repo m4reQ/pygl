@@ -11,3 +11,4 @@ manual_tests/
 .pytest_cache
 dist/
 *.bat
+*.ps1
