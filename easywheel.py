@@ -4,8 +4,10 @@ import glob
 import hashlib
 import json
 import os
+import platform
 import re
 import shutil
+import sys
 import tempfile
 import typing as t
 import zipfile
@@ -235,17 +237,20 @@ def _create_compat_tag(python_version: str, is_pure: bool) -> str:
         raise RuntimeError(f'Invalid python version: {version}')
 
     if is_pure:
-        supported = tags.compatible_tags(version)
-    else:
-        supported = tags.cpython_tags(version)
-
-    for tag in supported:
-        if not is_pure and tag.abi == 'none' or tag.interpreter == f'cp{version[0]}{version[1]}':
-            continue
-
+        version_str = f'py{sys.version_info.major}{sys.version_info.minor}'
+        tag = next(
+            x
+            for x in tags.sys_tags()
+            if x.abi == 'none' and x.platform == 'any' and x.interpreter == version_str)
         return str(tag)
 
-    raise RuntimeError('Couldn\'t find suitable compatibility tag. This should not happen and is most likely a bug.')
+    # TODO Allow usage of stable abi (*-abi3-*)
+    version_str = f'cp{sys.version_info.major}{sys.version_info.minor}'
+    tag = next(
+        x
+        for x in tags.sys_tags()
+        if x.abi == version_str and x.platform != 'any' and x.interpreter == version_str)
+    return str(tag)
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='A simple Python wheel generator')
