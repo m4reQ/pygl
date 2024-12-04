@@ -2,6 +2,7 @@ import argparse
 import dataclasses
 import glob
 import hashlib
+import json
 import os
 import re
 import shutil
@@ -151,7 +152,11 @@ class Package:
             for copied_file in copied_files:
                 whl_file.write(copied_file, arcname=os.path.relpath(copied_file, pkg_dir))
 
-        return _normalize_path(whl_filepath)
+        data = {
+            'whl_filepath': _normalize_path(whl_filepath),
+            'whl_filename': os.path.basename(whl_filepath)
+        }
+        return json.dumps(data)
 
 def _normalize_path(filepath: str) -> str:
     return filepath.lstrip('./').replace('\\', '/')
@@ -260,6 +265,6 @@ if __name__ == '__main__':
     pkg = Package.from_file('package.yml')
 
     os.chdir(old_working_dir)
-    whl_filepath = pkg.build(args.build)
+    whl_info = pkg.build(args.build)
 
     print(whl_filepath)
