@@ -54,17 +54,17 @@ jobs:
         if: matrix.os == 'windows-latest'
         id: wheel-windows
         run: |
-          json = `python -m easywheel -B ./build/cmake`
-          echo "WHL_FILEPATH=fromJson(json).whl_filepath" >> $env:GITHUB_OUTPUT
-          echo "WHL_FILENAME=fromJson(json).whl_filename" >> $env:GITHUB_OUTPUT
+          json=`python -m easywheel -B ./build/cmake`
+          echo "WHL_FILEPATH=${{ fromJson(json).whl_filepath }}" >> $env:GITHUB_OUTPUT
+          echo "WHL_FILENAME=${{ fromJson(json).whl_filename }}" >> $env:GITHUB_OUTPUT
 
       - name: Create wheel (Ubuntu)
         if: matrix.os == 'ubuntu-latest'
         id: wheel-ubuntu
         run: |
-          json = `python -m easywheel -B ./build/cmake`
-          echo "WHL_FILEPATH=fromJson(json).whl_filepath" >> $GITHUB_OUTPUT
-          echo "WHL_FILENAME=fromJson(json).whl_filename" >> $GITHUB_OUTPUT
+          json=`python -m easywheel -B ./build/cmake`
+          echo "WHL_FILEPATH=${{ fromJson(json).whl_filepath }}" >> $GITHUB_OUTPUT
+          echo "WHL_FILENAME=${{ fromJson(json).whl_filename }}" >> $GITHUB_OUTPUT
 
       - name: Upload artifacts (Windows)
         if: matrix.os == 'windows-latest'
