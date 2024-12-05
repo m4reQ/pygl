@@ -361,6 +361,7 @@ static ModuleInfo modInfo = {
         &polygonModeEnum,
         &blendFactorEnum,
         &stringNameEnum,
+        &blendEquationEnum,
         {0},
     },
 };
