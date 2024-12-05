@@ -340,7 +340,7 @@ static ModuleInfo modInfo = {
             {"cull_face", (PyCFunction)py_cull_face, METH_O, NULL},
             {"front_face", (PyCFunction)py_front_face, METH_O, NULL},
             {"enable", (PyCFunction)py_enable, METH_O, NULL},
-            {"enable", (PyCFunction)py_disable, METH_O, NULL},
+            {"disable", (PyCFunction)py_disable, METH_O, NULL},
             {"hint", (PyCFunction)py_hint, METH_VARARGS, NULL},
             {"blend_func", (PyCFunction)py_blend_func, METH_VARARGS, NULL},
             {"blend_equation", (PyCFunction)py_blend_equation, METH_O, NULL},
