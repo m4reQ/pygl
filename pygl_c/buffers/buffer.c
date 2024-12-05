@@ -96,11 +96,11 @@ static PyObject *store(PyBuffer *self, PyObject *args, PyObject *kwargs)
         memcpy(dataPtr, dataBuffer.buf, dataBuffer.len);
         dataSize = dataBuffer.len;
     }
-    else if (PyObject_IsInstance(data, (PyObject *)&pyQuaternionType))
-    {
-        py_quaternion_copy(dataPtr, (Quaternion *)data);
-        dataSize = sizeof(versor);
-    }
+    // else if (PyObject_IsInstance(data, (PyObject *)&pyQuaternionType))
+    // {
+    //     py_quaternion_copy(dataPtr, (Quaternion *)data);
+    //     dataSize = sizeof(versor);
+    // }
     else if (PyLong_Check(data))
     {
         *(int *)dataPtr = PyLong_AsLong(data);

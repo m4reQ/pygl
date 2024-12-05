@@ -38,6 +38,19 @@ static PyObject *py_blend_func(PyObject *Py_UNUSED(self), PyObject *args)
     Py_RETURN_NONE;
 }
 
+static PyObject *py_blend_equation(PyObject *Py_UNUSED(self), PyObject *equation)
+{
+    THROW_IF(
+        !PyLong_Check(equation),
+        PyExc_TypeError,
+        "Equation has to be of type int.",
+        NULL);
+
+    glBlendEquation(PyLong_AsUnsignedLong(equation));
+
+    Py_RETURN_NONE;
+}
+
 static PyObject *py_polygon_mode(PyObject *Py_UNUSED(self), PyObject *args)
 {
     GLenum face = 0, mode = 0;
@@ -119,6 +132,19 @@ static PyObject *py_enable(PyObject *Py_UNUSED(self), PyObject *cap)
         NULL);
 
     glEnable(PyLong_AsUnsignedLong(cap));
+
+    Py_RETURN_NONE;
+}
+
+static PyObject *py_disable(PyObject *Py_UNUSED(self), PyObject *cap)
+{
+    THROW_IF(
+        !PyLong_Check(cap),
+        PyExc_TypeError,
+        "Enable cap has to be of type int.",
+        NULL);
+
+    glDisable(PyLong_AsUnsignedLong(cap));
 
     Py_RETURN_NONE;
 }
@@ -290,6 +316,18 @@ static EnumDef stringNameEnum = {
         {0}},
 };
 
+static EnumDef blendEquationEnum = {
+    .enumName = "BlendEquation",
+    .values = (EnumValue[]){
+        {"FUNC_ADD", GL_FUNC_ADD},
+        {"FUNC_SUBTRACT", GL_FUNC_SUBTRACT},
+        {"FUNC_REVERSE_SUBTRACT", GL_FUNC_REVERSE_SUBTRACT},
+        {"MIN", GL_MIN},
+        {"MAX", GL_MAX},
+        {0},
+    },
+};
+
 static ModuleInfo modInfo = {
     .def = {
         PyModuleDef_HEAD_INIT,
@@ -302,8 +340,10 @@ static ModuleInfo modInfo = {
             {"cull_face", (PyCFunction)py_cull_face, METH_O, NULL},
             {"front_face", (PyCFunction)py_front_face, METH_O, NULL},
             {"enable", (PyCFunction)py_enable, METH_O, NULL},
+            {"enable", (PyCFunction)py_disable, METH_O, NULL},
             {"hint", (PyCFunction)py_hint, METH_VARARGS, NULL},
             {"blend_func", (PyCFunction)py_blend_func, METH_VARARGS, NULL},
+            {"blend_equation", (PyCFunction)py_blend_equation, METH_O, NULL},
             {"get_string", (PyCFunction)get_string, METH_VARARGS | METH_KEYWORDS, NULL},
             {"clear_color", (PyCFunction)clear_color, METH_VARARGS, NULL},
             {"scissor", (PyCFunction)scissor, METH_VARARGS, NULL},
