@@ -38,6 +38,17 @@ static PyObject *py_blend_func(PyObject *Py_UNUSED(self), PyObject *args)
     Py_RETURN_NONE;
 }
 
+static PyObject *py_blend_func_separate(PyObject *Py_UNUSED(self), PyObject *args)
+{
+    GLenum srcRgb = 0, dstRgb = 0, srcAlpha = 0, dstAlpha = 0;
+
+    if (!PyArg_ParseTuple(args, "IIII", &srcRgb, &dstRgb, &srcAlpha, &dstAlpha))
+        return NULL;
+
+    glBlendFuncSeparate(srcRgb, dstRgb, srcAlpha, dstAlpha);
+    Py_RETURN_NONE;
+}
+
 static PyObject *py_blend_equation(PyObject *Py_UNUSED(self), PyObject *equation)
 {
     THROW_IF(
@@ -343,6 +354,7 @@ static ModuleInfo modInfo = {
             {"disable", (PyCFunction)py_disable, METH_O, NULL},
             {"hint", (PyCFunction)py_hint, METH_VARARGS, NULL},
             {"blend_func", (PyCFunction)py_blend_func, METH_VARARGS, NULL},
+            {"blend_func_separate", (PyCFunction)py_blend_func_separate, METH_VARARGS, NULL},
             {"blend_equation", (PyCFunction)py_blend_equation, METH_O, NULL},
             {"get_string", (PyCFunction)get_string, METH_VARARGS | METH_KEYWORDS, NULL},
             {"clear_color", (PyCFunction)clear_color, METH_VARARGS, NULL},

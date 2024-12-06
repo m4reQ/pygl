@@ -67,14 +67,18 @@ static PyObject *draw_arrays_instanced_base_instance(PyObject *Py_UNUSED(self), 
     Py_RETURN_NONE;
 }
 
-static PyObject *draw_elements(PyObject *Py_UNUSED(self), PyObject *args)
+// TODO Add `offset` argument to all draw_elements_* methods
+static PyObject *draw_elements(PyObject *Py_UNUSED(self), PyObject *args, PyObject *kwargs)
 {
+    static char *kwNames[] = {"mode", "count", "type", "offset", NULL};
+
     GLenum mode = 0, type = 0;
     GLsizei count = 0;
-    if (!PyArg_ParseTuple(args, "IiI", &mode, &count, &type))
+    void *offset = NULL;
+    if (!PyArg_ParseTupleAndKeywords(args, kwargs, "IiI|n", kwNames, &mode, &count, &type, &offset))
         return NULL;
 
-    glDrawElements(mode, count, type, NULL);
+    glDrawElements(mode, count, type, offset);
 
     Py_RETURN_NONE;
 }
@@ -283,7 +287,7 @@ static ModuleInfo modInfo = {
             {"draw_arrays", draw_arrays, METH_VARARGS, NULL},
             {"draw_arrays_instanced", draw_arrays_instanced, METH_VARARGS, NULL},
             {"draw_arrays_instanced_base_instance", draw_arrays_instanced_base_instance, METH_VARARGS, NULL},
-            {"draw_elements", draw_elements, METH_VARARGS, NULL},
+            {"draw_elements", (PyCFunction)draw_elements, METH_VARARGS | METH_KEYWORDS, NULL},
             {"draw_elements_instanced", draw_elements_instanced, METH_VARARGS, NULL},
             {"draw_elements_instanced_base_instance", draw_elements_instanced_base_instance, METH_VARARGS, NULL},
             {"draw_elements_instanced_base_vertex", draw_elements_instanced_base_vertex, METH_VARARGS, NULL},

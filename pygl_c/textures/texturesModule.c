@@ -27,6 +27,37 @@ static PyObject *set_pixel_unpack_alignment(PyObject *Py_UNUSED(self), PyObject 
     return set_pixel_storei(GL_PACK_ALIGNMENT, alignment);
 }
 
+static PyObject *bind_texture_ids(PyObject *Py_UNUSED(cls), PyObject *args, PyObject *kwargs)
+{
+    static char *kwNames[] = {"textures", "first", NULL};
+
+    GLuint first = 0;
+    PyObject *textures = NULL;
+    if (!PyArg_ParseTupleAndKeywords(args, kwargs, "O!|I", kwNames, &PyList_Type, &textures, &first))
+        return NULL;
+
+    GLsizei nTextures = PyList_GET_SIZE(textures);
+    if (nTextures == 0)
+        Py_RETURN_NONE;
+
+    if (nTextures > 32)
+    {
+        PyErr_SetString(PyExc_RuntimeError, "Cannot bind more than 32 textures at once. Use separate bind_textures calls.");
+        return NULL;
+    }
+
+    GLuint textureIds[32];
+    for (GLsizei i = 0; i < nTextures; i++)
+    {
+        PyObject *texId = PyList_GET_ITEM(textures, i);
+        textureIds[i] = PyLong_AsUnsignedLong(texId);
+    }
+
+    glBindTextures(first, nTextures, textureIds);
+
+    Py_RETURN_NONE;
+}
+
 static PyObject *bind_textures(PyObject *Py_UNUSED(cls), PyObject *args, PyObject *kwargs)
 {
     static char *kwNames[] = {"textures", "first", NULL};
@@ -263,6 +294,7 @@ static ModuleInfo modInfo = {
         .m_size = -1,
         .m_methods = (PyMethodDef[]){
             {"bind_textures", (PyCFunction)bind_textures, METH_VARARGS | METH_KEYWORDS, NULL},
+            {"bind_texture_ids", (PyCFunction)bind_texture_ids, METH_VARARGS | METH_KEYWORDS, NULL},
             {"set_pixel_pack_alignment", (PyCFunction)set_pixel_pack_alignment, METH_O, NULL},
             {"set_pixel_unpack_alignment", (PyCFunction)set_pixel_unpack_alignment, METH_O, NULL},
             {0},

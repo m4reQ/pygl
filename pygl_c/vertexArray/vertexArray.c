@@ -61,12 +61,22 @@ static bool set_attrib_format(GLuint array, PyVertexDescriptor *desc, GLuint *of
     case GL_UNSIGNED_SHORT:
     case GL_BYTE:
     case GL_UNSIGNED_BYTE:
-        glVertexArrayAttribIFormat(
-            array,
-            desc->attribIndex + rowOffset,
-            desc->count,
-            desc->type,
-            *offset);
+        // allow to use normalized int attribs
+        if (desc->isNormalized)
+            glVertexArrayAttribFormat(
+                array,
+                desc->attribIndex + rowOffset,
+                desc->count,
+                desc->type,
+                (GLboolean)desc->isNormalized,
+                *offset);
+        else
+            glVertexArrayAttribIFormat(
+                array,
+                desc->attribIndex + rowOffset,
+                desc->count,
+                desc->type,
+                *offset);
         break;
     default:
         PyErr_Format(PyExc_ValueError, "Invalid attribute type: %d.", desc->type);

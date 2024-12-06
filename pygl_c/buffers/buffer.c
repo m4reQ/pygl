@@ -54,6 +54,38 @@ static PyObject *transfer(PyBuffer *self, PyObject *Py_UNUSED(args))
     Py_RETURN_NONE;
 }
 
+static PyObject *store_address(PyBuffer *self, PyObject *args, PyObject *Py_UNUSED(kwargs))
+{
+    if (!(self->flags & GL_MAP_PERSISTENT_BIT) &&
+        !(self->flags & GL_DYNAMIC_STORAGE_BIT) &&
+        !self->dataPtr)
+    {
+        PyErr_SetString(PyExc_RuntimeError, "Non-persistent buffer has to be mapped prior to storing data.");
+        return NULL;
+    }
+
+    void *dataBuffer = NULL;
+    size_t dataSize = 0;
+
+    if (!PyArg_ParseTuple(args, "nn", &dataBuffer, &dataSize))
+        return NULL;
+
+    if (dataBuffer == NULL || dataSize == 0)
+        Py_RETURN_NONE;
+
+    THROW_IF(
+        dataSize > self->size - self->currentOffset,
+        PyExc_TypeError,
+        "Data transfer would cause buffer overflow.",
+        NULL);
+
+    memcpy(self->dataPtr, dataBuffer, dataSize);
+    self->currentOffset += dataSize;
+
+end:
+    Py_RETURN_NONE;
+}
+
 static PyObject *store(PyBuffer *self, PyObject *args, PyObject *kwargs)
 {
     static char *kwNames[] = {"data", "offset", NULL};
@@ -294,6 +326,7 @@ PyTypeObject pyBufferType = {
     .tp_methods = (PyMethodDef[]){
         {"delete", (PyCFunction) delete, METH_NOARGS, NULL},
         {"store", (PyCFunction)store, METH_VARARGS | METH_KEYWORDS, NULL},
+        {"store_address", (PyCFunction)store_address, METH_VARARGS, NULL},
         {"transfer", (PyCFunction)transfer, METH_NOARGS, NULL},
         {"reset_offset", (PyCFunction)reset_offset, METH_NOARGS, NULL},
         {"map", (PyCFunction)map, METH_NOARGS, NULL},
