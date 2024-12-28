@@ -195,6 +195,30 @@ static PyObject *viewport(PyObject *Py_UNUSED(self), PyObject *args)
     Py_RETURN_NONE;
 }
 
+static PyObject *color_mask(PyObject *Py_UNUSED(self), PyObject *args)
+{
+    bool r, g, b, a;
+    if (!PyArg_ParseTuple(args, "pppp", &r, &g, &b, &a))
+        return NULL;
+
+    glColorMask((GLboolean)r, (GLboolean)b, (GLboolean)g, (GLboolean)a);
+
+    Py_RETURN_NONE;
+}
+
+static PyObject *depth_mask(PyObject *Py_UNUSED(self), PyObject *enabled)
+{
+    THROW_IF(
+        !PyBool_Check(enabled),
+        PyExc_TypeError,
+        "Depth enable state has to be of type bool.",
+        NULL);
+
+    glDepthMask(Py_IsTrue(enabled));
+
+    Py_RETURN_NONE;
+}
+
 #pragma region Module
 static EnumDef cullFaceEnum = {
     .enumName = "CullFace",
@@ -360,6 +384,8 @@ static ModuleInfo modInfo = {
             {"clear_color", (PyCFunction)clear_color, METH_VARARGS, NULL},
             {"scissor", (PyCFunction)scissor, METH_VARARGS, NULL},
             {"viewport", (PyCFunction)viewport, METH_VARARGS, NULL},
+            {"color_mask", (PyCFunction)color_mask, METH_VARARGS, NULL},
+            {"depth_mask", (PyCFunction)depth_mask, METH_O, NULL},
             {0},
         },
     },
