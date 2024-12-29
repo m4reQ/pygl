@@ -124,23 +124,15 @@ static int py_vertex_array_init(PyVertexArray *self, PyObject *args, PyObject *k
     PyObject *vertexInputs = NULL;
     PyBuffer *elementBuffer = NULL;
 
-    if (!PyArg_ParseTupleAndKeywords(args, kwargs, "O!|O", kwNames, &PyList_Type, &vertexInputs, &elementBuffer))
+    if (!PyArg_ParseTupleAndKeywords(args, kwargs, "O!|O!", kwNames, &PyList_Type, &vertexInputs, &pyBufferType, &elementBuffer))
         return -1;
 
     glCreateVertexArrays(1, &self->id);
 
     if (elementBuffer)
-    {
-        THROW_IF(
-            !PyObject_IsInstance((PyObject *)elementBuffer, (PyObject *)&pyBufferType),
-            PyExc_TypeError,
-            "Element buffer has to be of type pygl.buffers.Buffer or pygl.buffers.MappedBuffer",
-            -1);
-
         glVertexArrayElementBuffer(self->id, elementBuffer->id);
-    }
 
-    int nInputs = PyList_GET_SIZE(vertexInputs);
+    const int nInputs = PyList_GET_SIZE(vertexInputs);
     for (int i = 0; i < nInputs; i++)
     {
         PyVertexInput *input = (PyVertexInput *)PyList_GET_ITEM(vertexInputs, i);

@@ -79,7 +79,7 @@ static PyObject *store_address(PyBuffer *self, PyObject *args, PyObject *Py_UNUS
         "Data transfer would cause buffer overflow.",
         NULL);
 
-    memcpy(self->dataPtr, dataBuffer, dataSize);
+    memcpy((char *)self->dataPtr + self->currentOffset, dataBuffer, dataSize);
     self->currentOffset += dataSize;
 
 end:
