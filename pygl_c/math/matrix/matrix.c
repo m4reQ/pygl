@@ -1,19 +1,15 @@
 #include "matrix.h"
 #include <string.h>
 
-bool py_matrix_is_matrix(PyObject *obj)
+bool PyMatrix_Check(PyObject *obj)
 {
     return PyObject_IsInstance(obj, (PyObject *)&pyMatrix2Type) ||
            PyObject_IsInstance(obj, (PyObject *)&pyMatrix3Type) ||
            PyObject_IsInstance(obj, (PyObject *)&pyMatrix4Type);
 }
 
-void py_matrix_copy(void *dst, const Matrix *matrix)
+void *PyMatrix_GetData(PyObject *matrix)
 {
-    memcpy(dst, (char *)matrix + sizeof(Matrix), py_matrix_size(matrix));
-}
-
-uint8_t py_matrix_size(const Matrix *matrix)
-{
-    return matrix->length * sizeof(float);
+    // NOTE I hope just using offsetof from the biggest matrix type is enough to safely get data pointer
+    return (char *)matrix + offsetof(Matrix4, data);
 }

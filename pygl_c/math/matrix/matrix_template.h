@@ -372,16 +372,32 @@ static int subscript_assign(_SELF, PyObject *indices, PyObject *value)
 
 static int get_buffer(_SELF, Py_buffer *buffer, int flags)
 {
+    int ndim;
+    Py_ssize_t *shape;
+    Py_ssize_t *strides;
+    if ((flags & PyBUF_C_CONTIGUOUS) == PyBUF_C_CONTIGUOUS)
+    {
+        ndim = 1;
+        shape = (Py_ssize_t[]){MAT_LEN * MAT_LEN};
+        strides = (Py_ssize_t[]){sizeof(float)};
+    }
+    else
+    {
+        ndim = 2;
+        shape = (Py_ssize_t[]){MAT_LEN, MAT_LEN};
+        strides = (Py_ssize_t[]){sizeof(float), 4 * sizeof(float)};
+    }
+
     *buffer = (Py_buffer){
         .obj = Py_NewRef(self),
         .buf = self->data,
         .len = MAT_LEN * MAT_LEN * sizeof(float),
         .itemsize = sizeof(float),
-        .ndim = 2,
         .readonly = !(flags & PyBUF_WRITABLE == PyBUF_WRITABLE),
         .format = (flags & PyBUF_FORMAT == PyBUF_FORMAT) ? "f" : NULL,
-        .shape = (Py_ssize_t[]){MAT_LEN, MAT_LEN},
-        .strides = (Py_ssize_t[]){sizeof(float), 4 * sizeof(float)},
+        .ndim = ndim,
+        .shape = shape,
+        .strides = strides,
     };
 
     return 0;
@@ -546,7 +562,7 @@ static PyObject *class_length(PyTypeObject *cls, PyObject *Py_UNUSED(args))
 
 PyTypeObject _PY_TYPE = {
     PyVarObject_HEAD_INIT(NULL, 0)
-        .tp_new = PyType_GenericNew,
+    .tp_new = PyType_GenericNew,
     .tp_flags = Py_TPFLAGS_DEFAULT,
     .tp_basicsize = sizeof(_TYPE),
     .tp_name = "pygl.math.Matrix" STRINGIFY(MAT_LEN),

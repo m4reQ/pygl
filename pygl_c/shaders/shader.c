@@ -3,25 +3,26 @@
 #include "shader.h"
 #include "shaderStage.h"
 #include "../utility.h"
+#include "../math/matrix/matrix.h"
 
 #define READ_FILE_CHUNK_SIZE 1024 * 64 // 64 KiB
-#define SET_UNIFORM_MAT_IMPL(type)                                                    \
-    switch (len)                                                                      \
-    {                                                                                 \
-    case 2:                                                                           \
-        glProgramUniformMatrix2##type##v(id, loc, 1, (GLboolean)transpose, buf->buf); \
-        break;                                                                        \
-    case 3:                                                                           \
-        glProgramUniformMatrix3##type##v(id, loc, 1, (GLboolean)transpose, buf->buf); \
-        break;                                                                        \
-    case 4:                                                                           \
-        glProgramUniformMatrix4##type##v(id, loc, 1, (GLboolean)transpose, buf->buf); \
-        break;                                                                        \
-    default:                                                                          \
-        PyErr_SetString(PyExc_ValueError, "Invalid matrix length provided.");         \
-        return false;                                                                 \
-    }                                                                                 \
-    return true;
+#define SET_UNIFORM_MAT_IMPL(type, data)                                          \
+    switch (len)                                                                  \
+    {                                                                             \
+    case 2:                                                                       \
+        glProgramUniformMatrix2##type##v(id, loc, 1, (GLboolean)transpose, data); \
+        break;                                                                    \
+    case 3:                                                                       \
+        glProgramUniformMatrix3##type##v(id, loc, 1, (GLboolean)transpose, data); \
+        break;                                                                    \
+    case 4:                                                                       \
+        glProgramUniformMatrix4##type##v(id, loc, 1, (GLboolean)transpose, data); \
+        break;                                                                    \
+    default:                                                                      \
+        PyErr_SetString(PyExc_ValueError, "Invalid matrix length provided.");     \
+        return false;                                                             \
+    }                                                                             \
+    return true
 
 typedef struct
 {
@@ -593,14 +594,14 @@ static PyObject *set_uniform_vec4(PyShader *self, PyObject *args, PyObject *kwar
     Py_RETURN_NONE;
 }
 
-static bool set_uniform_mat_f(GLuint id, GLint loc, Py_buffer *buf, int len, bool transpose)
+static bool set_uniform_mat_f(GLuint id, GLint loc, const void *data, int len, bool transpose)
 {
-    SET_UNIFORM_MAT_IMPL(f)
+    SET_UNIFORM_MAT_IMPL(f, data);
 }
 
-static bool set_uniform_mat_d(GLuint id, GLint loc, Py_buffer *buf, int len, bool transpose)
+static bool set_uniform_mat_d(GLuint id, GLint loc, const void *data, int len, bool transpose)
 {
-    SET_UNIFORM_MAT_IMPL(d)
+    SET_UNIFORM_MAT_IMPL(d, data);
 }
 
 static bool check_mat_buf_valid(Py_buffer *buf, int len, size_t itemSize)
@@ -618,53 +619,88 @@ static bool check_mat_buf_valid(Py_buffer *buf, int len, size_t itemSize)
     return true;
 }
 
-static bool set_uniform_mat_impl(PyShader *self, PyObject *args, PyObject *kwargs, int len)
+static void *get_value_data(PyObject *value, int expectedLength, size_t expectedItemSize)
+{
+    if (PyMatrix_Check(value))
+        return PyMatrix_GetData(value);
+
+    Py_buffer dataBuffer = {0};
+    if (PyObject_GetBuffer(value, &dataBuffer, PyBUF_READ | PyBUF_C_CONTIGUOUS) != -1)
+    {
+        const size_t expectedSize = expectedLength * expectedItemSize;
+        if (dataBuffer.len < expectedSize)
+        {
+            PyErr_Format(
+                PyExc_ValueError,
+                "Provided data buffer is too small for given size and data type specified (expected size: %zu, actual size: %zu).",
+                expectedSize,
+                dataBuffer.len);
+            return NULL;
+        }
+
+        return dataBuffer.buf;
+    }
+
+    PyErr_Format(PyExc_TypeError, "Expected argument value to be of type Matrix* or be a c-contiguous buffer, got: %s.", Py_TYPE(value)->tp_name);
+    return NULL;
+}
+
+static PyObject *set_uniform_mat_impl(PyShader *self, PyObject *args, PyObject *kwargs, int len)
 {
     static char *kwNames[] = {"name", "value", "type", "transpose", NULL};
 
-    PyObject *name = NULL;
-    Py_buffer buf = {0};
+    PyObject *name;
+    PyObject *value;
     GLenum type = GL_FLOAT;
     bool transpose = false;
-    if (!PyArg_ParseTupleAndKeywords(args, kwargs, "Uy*|Ip", kwNames, &name, &buf, &type, &transpose))
-        return false;
+    if (!PyArg_ParseTupleAndKeywords(args, kwargs, "UO|Ip", kwNames, &name, &value, &type, &transpose))
+        return NULL;
 
     GLint loc = get_uniform_location(self, name);
     if (loc == -1)
-        return false;
+        return NULL;
 
+    bool result = false;
     switch (type)
     {
     case GL_FLOAT:
-        if (!check_mat_buf_valid(&buf, len, sizeof(GLfloat)))
-            return false;
-        set_uniform_mat_f(self->id, loc, &buf, len, transpose);
-        return true;
+    {
+        const void *data = get_value_data(value, len, sizeof(GLfloat));
+        if (!data)
+            break;
+
+        result = set_uniform_mat_f(self->id, loc, data, len, transpose);
+        break;
+    }
     case GL_DOUBLE:
-        if (!check_mat_buf_valid(&buf, len, sizeof(GLdouble)))
-            return false;
-        set_uniform_mat_d(self->id, loc, &buf, len, transpose);
-        return true;
+    {
+        const void *data = get_value_data(value, len, sizeof(GLdouble));
+        if (!data)
+            break;
+
+        result = set_uniform_mat_d(self->id, loc, data, len, transpose);
+        break;
+    }
     default:
         PyErr_SetString(PyExc_ValueError, "Invalid uniform type.");
     }
 
-    return false;
+    return result ? Py_NewRef(Py_None) : NULL;
 }
 
 static PyObject *set_uniform_mat2(PyShader *self, PyObject *args, PyObject *kwargs)
 {
-    return set_uniform_mat_impl(self, args, kwargs, 2) ? Py_NewRef(Py_None) : NULL;
+    return set_uniform_mat_impl(self, args, kwargs, 2);
 }
 
 static PyObject *set_uniform_mat3(PyShader *self, PyObject *args, PyObject *kwargs)
 {
-    return set_uniform_mat_impl(self, args, kwargs, 3) ? Py_NewRef(Py_None) : NULL;
+    return set_uniform_mat_impl(self, args, kwargs, 3);
 }
 
 static PyObject *set_uniform_mat4(PyShader *self, PyObject *args, PyObject *kwargs)
 {
-    return set_uniform_mat_impl(self, args, kwargs, 4) ? Py_NewRef(Py_None) : NULL;
+    return set_uniform_mat_impl(self, args, kwargs, 4);
 }
 
 PyTypeObject pyShaderType = {
