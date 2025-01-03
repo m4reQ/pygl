@@ -267,6 +267,41 @@ static _TYPE *vec_negative(_SELF, _TYPE *other)
     return res;
 }
 
+static _TYPE *vec_remainder(_SELF, _TYPE *other)
+{
+    _NEW(res);
+
+    if (PyLong_Check(other))
+    {
+        float divisor = (float)PyLong_AsDouble((PyObject *)other);
+        for (size_t i = 0; i < VEC_LEN; i++)
+            res->data[i] = fmodf(self->data[i], divisor);
+    }
+    else if (PyFloat_Check(other))
+    {
+        float divisor = (float)PyFloat_AS_DOUBLE((PyObject *)other);
+        for (size_t i = 0; i < VEC_LEN; i++)
+            res->data[i] = fmodf(self->data[i], divisor);
+    }
+    else if (PyObject_IsInstance((PyObject *)other, (PyObject *)&_PY_TYPE))
+    {
+        for (size_t i = 0; i < VEC_LEN; i++)
+            res->data[i] = fmodf(self->data[i], other->data[i]);
+    }
+    else
+    {
+        PyErr_Format(
+            PyExc_TypeError,
+            "Expected second operand to be of type int, float or %s, got: %s.",
+            Py_TYPE(self)->tp_name,
+            Py_TYPE(other)->tp_name);
+        Py_DecRef((PyObject *)res);
+        return NULL;
+    }
+
+    return res;
+}
+
 static PyObject *vec_repr(_SELF)
 {
     char floatFormatBuffer[64] = {0};
@@ -412,7 +447,7 @@ static _TYPE *vec_right(PyTypeObject *cls, PyObject *Py_UNUSED(args))
 
 PyTypeObject _PY_TYPE = {
     PyVarObject_HEAD_INIT(NULL, 0)
-    .tp_new = PyType_GenericNew,
+        .tp_new = PyType_GenericNew,
     .tp_flags = Py_TPFLAGS_DEFAULT,
     .tp_name = "pygl.math." STRINGIFY(_TYPE),
     .tp_basicsize = sizeof(_TYPE),
@@ -473,6 +508,7 @@ PyTypeObject _PY_TYPE = {
         .nb_multiply = (binaryfunc)vec_mult,
         .nb_inplace_multiply = (binaryfunc)vec_imult,
         .nb_negative = (unaryfunc)vec_negative,
+        .nb_remainder = (binaryfunc)vec_remainder,
     },
     .tp_as_buffer = &(PyBufferProcs){
         .bf_getbuffer = (getbufferproc)vec_get_buffer,

@@ -121,8 +121,6 @@ static void delete_framebuffer_contents(PyFramebuffer *self)
 static PyObject *bind(PyFramebuffer *self, PyObject *Py_UNUSED(args))
 {
     glBindFramebuffer(GL_FRAMEBUFFER, self->id);
-    glViewport(0, 0, self->width, self->height);
-
     Py_RETURN_NONE;
 }
 
@@ -148,8 +146,8 @@ static PyObject *resize(PyFramebuffer *self, PyObject *args)
     if (!PyArg_ParseTuple(args, "ii", &width, &height))
         return NULL;
 
-    if (width < 0 || height < 0)
-        Py_RETURN_NONE; // DO NOT try to create 0-sized framebuffers
+    if (width < 0 || height < 0 || (width == self->width && height == self->height))
+        Py_RETURN_NONE; // do not try to create 0-sized framebuffers and skip when the size given is the same as current
 
     self->width = width;
     self->height = height;
@@ -248,7 +246,7 @@ static void dealloc(PyFramebuffer *self)
 
 PyTypeObject pyFramebufferType = {
     PyVarObject_HEAD_INIT(NULL, 0)
-    .tp_flags = Py_TPFLAGS_DEFAULT,
+        .tp_flags = Py_TPFLAGS_DEFAULT,
     .tp_name = "pygl.framebuffer.Framebuffer",
     .tp_basicsize = sizeof(PyFramebuffer),
     .tp_new = PyType_GenericNew,

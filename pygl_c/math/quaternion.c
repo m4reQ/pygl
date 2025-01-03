@@ -1,5 +1,6 @@
 #include "quaternion.h"
 #include "vector/vector.h"
+#include <cglm/cglm.h>
 
 #define NEW_QUAT(var) Quaternion *var = PyObject_New(Quaternion, &pyQuaternionType)
 
@@ -20,6 +21,34 @@ static PyObject *identity(PyTypeObject *cls, PyObject *Py_UNUSED(args))
 {
     Quaternion *res = PyObject_New(Quaternion, cls);
     glm_quat_identity(res->data);
+
+    return (PyObject *)res;
+}
+
+static PyObject *from_euler_deg(PyTypeObject *cls, PyObject *args)
+{
+    Vector3 *eulerAngles;
+    if (!PyArg_ParseTuple(args, "O!", &pyVector3Type, &eulerAngles))
+        return NULL;
+
+    Quaternion *res = PyObject_New(Quaternion, cls);
+
+    vec3 anglesRad;
+    glm_vec3_scale(eulerAngles->data, GLM_PI / 180.0f, anglesRad);
+    glm_euler_xyz_quat(anglesRad, res->data);
+
+    return (PyObject *)res;
+}
+
+static PyObject *from_euler_rad(PyTypeObject *cls, PyObject *args)
+{
+    Vector3 *eulerAngles;
+    if (!PyArg_ParseTuple(args, "O!", &pyVector3Type, &eulerAngles))
+        return NULL;
+
+    Quaternion *res = PyObject_New(Quaternion, cls);
+
+    glm_euler_xyz_quat(eulerAngles->data, res->data);
 
     return (PyObject *)res;
 }
@@ -258,6 +287,8 @@ PyTypeObject pyQuaternionType = {
     },
     .tp_methods = (PyMethodDef[]){
         {"from_axis", (PyCFunction)from_axis, METH_CLASS | METH_VARARGS, NULL},
+        {"from_euler_deg", (PyCFunction)from_euler_deg, METH_CLASS | METH_VARARGS, NULL},
+        {"from_euler_rad", (PyCFunction)from_euler_rad, METH_CLASS | METH_VARARGS, NULL},
         {"identity", (PyCFunction)identity, METH_CLASS | METH_NOARGS, NULL},
         {"look_at", (PyCFunction)look_at, METH_CLASS | METH_VARARGS, NULL},
         {"normalize", (PyCFunction)normalize, METH_NOARGS, NULL},

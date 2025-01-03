@@ -42,9 +42,9 @@ static PyObject *draw_arrays(PyObject *Py_UNUSED(self), PyObject *args)
 
 static PyObject *draw_arrays_instanced(PyObject *Py_UNUSED(self), PyObject *args)
 {
-    GLenum mode = 0;
-    GLint first = 0;
-    GLsizei count = 0, instanceCount = 0;
+    GLenum mode;
+    GLint first;
+    GLsizei count, instanceCount;
     if (!PyArg_ParseTuple(args, "Iiii", &mode, &first, &count, &instanceCount))
         return NULL;
 
