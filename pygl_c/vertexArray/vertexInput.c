@@ -8,7 +8,7 @@ static int py_vertexinput_init(PyVertexInput *self, PyObject *args, PyObject *kw
 {
     static char *kwNames[] = {"buffer", "stride", "descriptors", "offset", "divisor", NULL};
 
-    PyObject *buffer = NULL; // TODO Add typecheck to prevent crashes when invalid type is used
+    PyObject *buffer = NULL;
     PyObject *descriptors = NULL;
     if (!PyArg_ParseTupleAndKeywords(
             args, kwargs, "OiO!|LI", kwNames,
@@ -16,13 +16,20 @@ static int py_vertexinput_init(PyVertexInput *self, PyObject *args, PyObject *kw
             &self->offset, &self->divisor))
         return -1;
 
-    THROW_IF(
-        !PyObject_IsInstance((PyObject *)buffer, (PyObject *)&pyBufferType),
-        PyExc_TypeError,
-        "Buffer must be either of pygl.buffers.Buffer or pygl.buffers.MappedBuffer type.",
-        -1);
+    if (buffer != Py_None)
+    {
+        if (!PyObject_IsInstance(buffer, (PyObject *)&pyBufferType))
+        {
+            PyErr_Format(PyExc_TypeError, "Expected buffer to be of type pygl.buffers.Buffer, got: %s", Py_TYPE(buffer)->tp_name);
+            return -1;
+        }
 
-    self->bufferId = ((PyBuffer *)buffer)->id;
+        self->bufferId = ((PyBuffer *)buffer)->id;
+    }
+    else
+    {
+        self->bufferId = -1;
+    }
 
     // check types of every element in `descriptors` here to avoid later errors
     Py_ssize_t nDesc = PyList_GET_SIZE(descriptors);

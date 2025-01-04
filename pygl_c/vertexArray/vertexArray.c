@@ -91,8 +91,10 @@ static bool add_vertex_input(GLuint array, GLuint index, PyVertexInput *input)
 {
     GLuint attribOffset = 0;
 
-    glVertexArrayVertexBuffer(array, index, input->bufferId, input->offset, input->stride);
     glVertexArrayBindingDivisor(array, index, input->divisor);
+
+    if (input->bufferId != -1)
+        glVertexArrayVertexBuffer(array, index, input->bufferId, input->offset, input->stride);
 
     int nDescriptors = PyList_GET_SIZE(input->descriptors);
     for (int i = 0; i < nDescriptors; i++)

@@ -35,7 +35,7 @@ class VertexInput:
     divisor: int = 0
 
     def __init__(self,
-                 buffer: Buffer,
+                 buffer: Buffer | None,
                  stride: int,
                  descriptors: list[VertexDescriptor],
                  offset: int = 0,

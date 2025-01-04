@@ -6,33 +6,43 @@ from .textures import MagFilter, MinFilter
 
 class AttachmentFormat(enum.IntEnum):
     RGBA8: int
+    RGB8: int
     RG8: int
     R8: int
     RGBA16: int
+    RGB16: int
     RG16: int
     R16: int
     RGBA16F: int
+    RGB16F: int
     RG16F: int
     R16F: int
     RGBA32F: int
+    RGB32F: int
     RG32F: int
     R32F: int
     RGBA8I: int
+    RGB8I: int
     RG8I: int
     R8I: int
     RGBA16I: int
+    RGB16I: int
     RG16I: int
     R16I: int
     RGBA32I: int
+    RGB32I: int
     RG32I: int
     R32I: int
     RGBA8UI: int
+    RGB8UI: int
     RG8UI: int
     R8UI: int
     RGBA16UI: int
+    RGB16UI: int
     RG16UI: int
     R16UI: int
     RGBA32UI: int
+    RGB32UI: int
     RG32UI: int
     R32UI: int
     RGBA4: int
