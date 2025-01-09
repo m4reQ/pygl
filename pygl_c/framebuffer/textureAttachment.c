@@ -1,23 +1,27 @@
 #include "textureAttachment.h"
 
-static int init(PyAttachmentSpec* self, PyObject* args, PyObject* kwargs)
+static int init(PyAttachmentSpec *self, PyObject *args, PyObject *kwargs)
 {
-    static char* kwNames[] = {"width", "height", "format", "attachment", "samples", "min_filter", "mag_filter", "is_resizable", NULL};
+    static char *kwNames[] = {"width", "height", "format", "attachment", "samples", "min_filter", "mag_filter", "is_writable", "is_readable", NULL};
 
     self->isRenderbuffer = false;
-    self->isResizable = true;
+    self->isWritable = true;
+    self->isReadable = true;
     self->minFilter = GL_LINEAR;
     self->magFilter = GL_LINEAR;
     self->samples = 1;
 
-    PyObject* attachment = NULL;
+    PyObject *attachment = NULL;
     if (!PyArg_ParseTupleAndKeywords(
-        args, kwargs, "iiIO|iIIp", kwNames,
-        &self->width, &self->height,
-        &self->format, &attachment,
-        &self->samples,
-        &self->minFilter, &self->magFilter, &self->isResizable))
+            args, kwargs, "iiIO|iIIpp", kwNames,
+            &self->width, &self->height,
+            &self->format, &attachment,
+            &self->samples,
+            &self->minFilter, &self->magFilter,
+            &self->isWritable, &self->isReadable))
         return -1;
+
+    self->isResizable = (self->width == 0) && (self->height == 0);
 
     if (self->samples < 0)
     {
@@ -39,7 +43,9 @@ static PyMemberDef members[] = {
     {"mag_filter", T_UINT, offsetof(PyAttachmentSpec, magFilter), 0, NULL},
     {"attachment", T_UINT, offsetof(PyAttachmentSpec, attachment), 0, NULL},
     {"samples", T_INT, offsetof(PyAttachmentSpec, samples), 0, NULL},
-    {"is_resizable", T_BOOL, offsetof(PyAttachmentSpec, isResizable), 0, NULL},
+    {"is_writable", T_BOOL, offsetof(PyAttachmentSpec, isWritable), 0, NULL},
+    {"is_readable", T_BOOL, offsetof(PyAttachmentSpec, isReadable), 0, NULL},
+    {"_is_resizable", T_BOOL, offsetof(PyAttachmentSpec, isResizable), 0, NULL},
     {0},
 };
 

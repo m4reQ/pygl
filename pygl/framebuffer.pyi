@@ -70,7 +70,8 @@ class RenderbufferAttachment:
     format: int
     attachment: int
     samples: int
-    is_resizable: bool
+    is_writable: bool
+    is_readable: bool
 
     def __init__(self,
                  width: int,
@@ -78,7 +79,8 @@ class RenderbufferAttachment:
                  format: AttachmentFormat,
                  attachment: Attachment | int,
                  samples: int = 1,
-                 is_resizable: bool = True) -> None: ...
+                 writable: bool = True,
+                 readable: bool = True) -> None: ...
 
     @property
     def is_multisampled(self) -> bool: ...
@@ -97,7 +99,8 @@ class TextureAttachment:
     samples: int
     min_filter: int
     mag_filter: int
-    is_resizable: bool
+    is_writable: bool
+    is_readable: bool
 
     def __init__(self,
                  width: int,
@@ -107,7 +110,8 @@ class TextureAttachment:
                  samples: int = 1,
                  min_filter: MinFilter = MinFilter.LINEAR,
                  mag_filter: MagFilter = MagFilter.LINEAR,
-                 is_resizable: bool = True) -> None: ...
+                 writable: bool = True,
+                 readable: bool = True) -> None: ...
 
     @property
     def is_multisampled(self) -> bool: ...

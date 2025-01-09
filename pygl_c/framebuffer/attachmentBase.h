@@ -11,6 +11,8 @@ typedef struct
     PyObject_HEAD
     bool isRenderbuffer;
     bool isResizable;
+    bool isWritable;
+    bool isReadable;
     GLsizei width, height;
     GLenum format;
     GLenum minFilter, magFilter;

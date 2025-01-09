@@ -138,6 +138,8 @@ static GLuint create_stage(PyShaderStage *stage)
 {
     size_t sourceLength = 0;
     const char *source = get_shader_stage_source(stage, &sourceLength);
+    if (source == NULL)
+        return -1;
 
     GLuint id = glCreateShader(stage->type);
     glShaderSource(id, 1, &source, (GLint *)&sourceLength);

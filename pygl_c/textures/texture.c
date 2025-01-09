@@ -90,14 +90,22 @@ static size_t get_data_length(const PyUploadInfo *info)
 
 static void *get_data_ptr(const Py_buffer *buffer, const PyUploadInfo *info)
 {
-    if (!PyBuffer_IsContiguous(buffer, 'C'))
-    {
-        PyErr_SetString(PyExc_BufferError, "Data buffer has to be C-contiguous. For more informations go to https://github.com/m4reQ/pygl?tab=readme-ov-file#buffer-protocol-usage.");
+    if (buffer == NULL)
         return NULL;
-    }
 
     size_t offsetBytes = get_data_offset(info);
     size_t lengthBytes = get_data_length(info);
+
+    return (char *)buffer->buf + offsetBytes;
+}
+
+static bool check_buffer_length(const PyUploadInfo *uploadInfo, const Py_buffer *buffer)
+{
+    if (buffer == NULL)
+        return true;
+
+    size_t offsetBytes = get_data_offset(uploadInfo);
+    size_t lengthBytes = get_data_length(uploadInfo);
 
     if (offsetBytes + lengthBytes > buffer->len)
     {
@@ -107,10 +115,10 @@ static void *get_data_ptr(const Py_buffer *buffer, const PyUploadInfo *info)
             offsetBytes,
             lengthBytes,
             buffer->len);
-        return NULL;
+        return false;
     }
 
-    return (char *)buffer->buf + offsetBytes;
+    return true;
 }
 
 static bool upload_texture_1d(PyTexture *texture, const PyUploadInfo *info, const Py_buffer *buffer)
@@ -121,9 +129,10 @@ static bool upload_texture_1d(PyTexture *texture, const PyUploadInfo *info, cons
         return false;
     }
 
-    const void *dataPtr = get_data_ptr(buffer, info);
-    if (dataPtr == NULL)
+    if (!check_buffer_length(info, buffer))
         return false;
+
+    const void *dataPtr = get_data_ptr(buffer, info);
 
     if (info->imageSize != 0)
         glCompressedTextureSubImage1D(
@@ -158,9 +167,10 @@ static bool upload_texture_2d(PyTexture *texture, const PyUploadInfo *info, cons
         return false;
     }
 
-    const void *dataPtr = get_data_ptr(buffer, info);
-    if (dataPtr == NULL)
+    if (!check_buffer_length(info, buffer))
         return false;
+
+    const void *dataPtr = get_data_ptr(buffer, info);
 
     if (info->imageSize != 0)
         glCompressedTextureSubImage2D(
@@ -201,9 +211,10 @@ static bool upload_texture_3d(PyTexture *texture, const PyUploadInfo *info, cons
         return false;
     }
 
-    const void *dataPtr = get_data_ptr(buffer, info);
-    if (dataPtr == NULL)
+    if (!check_buffer_length(info, buffer))
         return false;
+
+    const void *dataPtr = get_data_ptr(buffer, info);
 
     if (info->imageSize != 0)
         glCompressedTextureSubImage3D(
@@ -479,22 +490,36 @@ static PyObject *upload(PyTexture *self, PyObject *args)
     }
 
     PyUploadInfo *info;
-    Py_buffer buffer = {0};
-    if (!PyArg_ParseTuple(args, "O!y*", &pyUploadInfoType, &info, &buffer))
+    PyObject *bufferObject = NULL;
+    if (!PyArg_ParseTuple(args, "O!O", &pyUploadInfoType, &info, &bufferObject))
         return NULL;
+
+    Py_buffer buffer = {0};
+    const Py_buffer *bufferPtr = NULL;
+
+    if (!Py_IsNone(bufferObject))
+    {
+        if (PyObject_GetBuffer(bufferObject, &buffer, PyBUF_READ | PyBUF_C_CONTIGUOUS))
+        {
+            PyErr_Format(PyExc_TypeError, "Expected data to be an object that is a c-contiguous readable buffer or None, got: %s.", Py_TYPE(bufferObject)->tp_name);
+            return NULL;
+        }
+
+        bufferPtr = &buffer;
+    }
 
     bool uploadSuccess = false;
     if (self->target == GL_TEXTURE_1D)
-        uploadSuccess = upload_texture_1d(self, info, &buffer);
+        uploadSuccess = upload_texture_1d(self, info, bufferPtr);
     else if (self->target == GL_TEXTURE_1D_ARRAY ||
              self->target == GL_TEXTURE_2D ||
              self->target == GL_TEXTURE_2D_MULTISAMPLE)
-        uploadSuccess = upload_texture_2d(self, info, &buffer);
+        uploadSuccess = upload_texture_2d(self, info, bufferPtr);
     else if (self->target == GL_TEXTURE_3D ||
              self->target == GL_TEXTURE_2D_ARRAY ||
              self->target == GL_TEXTURE_2D_MULTISAMPLE_ARRAY ||
              self->target == GL_TEXTURE_CUBE_MAP)
-        uploadSuccess = upload_texture_3d(self, info, &buffer);
+        uploadSuccess = upload_texture_3d(self, info, bufferPtr);
     else
     {
         // TODO Implement support for array cubemap textures

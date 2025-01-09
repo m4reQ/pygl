@@ -1,3 +1,4 @@
+#include "debug.h"
 #include "utility.h"
 #include "module.h"
 #include "gl.h"
@@ -8,6 +9,7 @@
 #include "framebuffer/framebuffer.h"
 #include "buffers/buffer.h"
 #include "buffers/textureBuffer.h"
+#include <stdarg.h>
 
 typedef struct
 {
@@ -16,6 +18,7 @@ typedef struct
 } CallbackData;
 
 static CallbackData callbackData = {0};
+static PyObject *logCallback;
 
 static void free_callback_data(void)
 {
@@ -38,8 +41,37 @@ static void opengl_callback(GLenum source, GLenum type, GLuint id, GLenum severi
         callbackData.data ? callbackData.data : Py_NewRef(Py_None));
     if (result == NULL)
     {
-        printf("OpenGL debug callback executed with an exception that will be ignored. For more info go to https://github.com/m4reQ/pygl?tab=readme-ov-file#opengl-debug-callback. \n");
-        PyErr_Clear();
+        PyObject *exception = PyErr_GetRaisedException();
+        PyObject *traceback = PyException_GetTraceback(exception);
+
+        printf("OpenGL debug callback executed with an exception that will be ignored. For more info go to https://github.com/m4reQ/pygl?tab=readme-ov-file#opengl-debug-callback. \nException traceback: %s\n", PyUnicode_AsUTF8(traceback));
+
+        Py_DecRef(exception);
+        Py_DecRef(traceback);
+    }
+}
+
+void debug_log(LogLevel lvl, const char *msg, ...)
+{
+    if (logCallback == NULL)
+        return;
+
+    PyObject *pyLvl = PyLong_FromUnsignedLong((unsigned long)lvl);
+
+    va_list args;
+    va_start(args, msg);
+    PyObject *pyMsg = PyUnicode_FromFormatV(msg, args);
+    va_end(args);
+
+    PyObject *result = PyObject_CallFunction(logCallback, "NN", pyLvl, pyMsg);
+    if (result == NULL)
+    {
+        PyObject *exception = PyErr_GetRaisedException();
+        PyObject *traceback = PyException_GetTraceback(exception);
+        printf("An error occured while executing debug log callback: %s.", PyUnicode_AsUTF8(traceback));
+
+        Py_DecRef(exception);
+        Py_DecRef(traceback);
     }
 }
 
@@ -109,6 +141,20 @@ static PyObject *py_debug_insert_message(PyObject *Py_UNUSED(self), PyObject *ar
         severity,
         (GLsizei)msgLength,
         msgBuffer);
+
+    Py_RETURN_NONE;
+}
+
+static PyObject *py_debug_set_log_callback(PyObject *Py_UNUSED(self), PyObject *callback)
+{
+    if (!PyCallable_Check(callback))
+    {
+        PyErr_Format(PyExc_TypeError, "Expected argument to be a callable, got: %s.", Py_TYPE(callback));
+        return NULL;
+    }
+
+    Py_XDECREF(logCallback);
+    logCallback = Py_NewRef(callback);
 
     Py_RETURN_NONE;
 }
@@ -232,9 +278,15 @@ static EnumDef errorCodeEnum = {
         {"OUT_OF_MEMORY", GL_OUT_OF_MEMORY},
         {"STACK_UNDERFLOW", GL_STACK_UNDERFLOW},
         {"STACK_OVERFLOW", GL_STACK_OVERFLOW},
-        {0},
-    },
-};
+        {0}}};
+
+static EnumDef logLevelEnum = {
+    .enumName = "LogLevel",
+    .values = (EnumValue[]){
+        {"INFO", LOG_LVL_INFO},
+        {"WARNING", LOG_LVL_WARNING},
+        {"ERROR", LOG_LVL_ERROR},
+        {0}}};
 
 static ModuleInfo modInfo = {
     .def = {
@@ -248,6 +300,7 @@ static ModuleInfo modInfo = {
             {"get_error", py_debug_get_error, METH_NOARGS, NULL},
             {"set_object_name", py_debug_set_object_name, METH_VARARGS, NULL},
             {"insert_message", (PyCFunction)py_debug_insert_message, METH_VARARGS, NULL},
+            {"set_log_callback", (PyCFunction)py_debug_set_log_callback, METH_O, NULL},
             {0},
         },
     },
@@ -256,6 +309,7 @@ static ModuleInfo modInfo = {
         &errorCodeEnum,
         &debugSourceEnum,
         &debugTypeEnum,
+        &logLevelEnum,
         NULL,
     },
 };

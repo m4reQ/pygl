@@ -4,22 +4,22 @@
 
 #define MAX_ATTACHMENT_OFFSET GL_COLOR_ATTACHMENT31 - GL_COLOR_ATTACHMENT0
 
-static PyObject* is_multisampled(PyAttachmentSpec* self, void* Py_UNUSED(closure))
+static PyObject *is_multisampled(PyAttachmentSpec *self, void *Py_UNUSED(closure))
 {
     return PyBool_FromLong(self->samples > 1);
 }
 
-static PyObject* _is_depth_attachment(PyAttachmentSpec* self, void* Py_UNUSED(closure))
+static PyObject *_is_depth_attachment(PyAttachmentSpec *self, void *Py_UNUSED(closure))
 {
     return PyBool_FromLong((int)is_depth_attachment(self->attachment));
 }
 
-static PyObject* size(PyAttachmentSpec* self, void* Py_UNUSED(closure))
+static PyObject *size(PyAttachmentSpec *self, void *Py_UNUSED(closure))
 {
     return PyTuple_Pack(2, PyLong_FromLong(self->width), PyLong_FromLong(self->height));
 }
 
-bool convert_attachment(PyObject* attachment, GLenum* result)
+bool convert_attachment(PyObject *attachment, GLenum *result)
 {
     if (PyLong_CheckExact(attachment))
     {
@@ -40,14 +40,14 @@ bool convert_attachment(PyObject* attachment, GLenum* result)
     }
     else if (PyLong_Check(attachment)) // Detect Attachment enum
     {
-        PyObject* _long = PyNumber_Long(attachment);
+        PyObject *_long = PyNumber_Long(attachment);
         assert(_long != NULL && "Couldn't convert attachment to long, but it is convertible");
         *result = PyLong_AsUnsignedLong(_long);
         Py_DECREF(_long);
     }
     else
     {
-        PyErr_SetString(PyExc_TypeError, "Attachment has to be int or pygl.framebuffer.Attachment enum.");
+        PyErr_SetString(PyExc_TypeError, "Attachment has to be int or pygl.framebuffer.Attachment.");
         return false;
     }
 
@@ -59,10 +59,10 @@ bool is_depth_attachment(GLenum attachment)
     return attachment == GL_DEPTH_ATTACHMENT || attachment == GL_DEPTH_STENCIL_ATTACHMENT;
 }
 
-bool is_attachment_spec(PyObject* obj)
+bool is_attachment_spec(PyObject *obj)
 {
-    return PyObject_IsInstance(obj, (PyObject*)&pyRenderbufferAttachmentType) ||
-           PyObject_IsInstance(obj, (PyObject*)&pyTextureAttachmentType);
+    return PyObject_IsInstance(obj, (PyObject *)&pyRenderbufferAttachmentType) ||
+           PyObject_IsInstance(obj, (PyObject *)&pyTextureAttachmentType);
 }
 
 PyGetSetDef pyAttachmentSpecGetSet[] = {
