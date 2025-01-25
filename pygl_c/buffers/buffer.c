@@ -6,20 +6,18 @@
 
 static PyObject *map(PyBuffer *self, PyObject *Py_UNUSED(args))
 {
-    if (self->flags & GL_MAP_PERSISTENT_BIT)
+    // don't map the buffer if:
+    // 1 - buffer is persistently mapped
+    // 2 - buffer uses dynamic storage
+    // 3 - buffer is already mapped
+
+    // TODO Issue warning when user tries to map a dynamic buffer
+    if (FLAG_IS_SET(self->flags, GL_MAP_PERSISTENT_BIT) ||
+        FLAG_IS_SET(self->flags, GL_DYNAMIC_STORAGE_BIT) ||
+        self->dataPtr != NULL)
+    {
         Py_RETURN_NONE;
-
-    THROW_IF(
-        self->flags & GL_DYNAMIC_STORAGE_BIT,
-        PyExc_RuntimeError,
-        "Dynamic storage buffers cannot be mapped.",
-        NULL);
-
-    THROW_IF(
-        self->dataPtr,
-        PyExc_RuntimeError,
-        "Buffer is already mapped.",
-        NULL);
+    }
 
     self->dataPtr = glMapNamedBufferRange(self->id, 0, self->size, self->flags);
     if (!self->dataPtr)
@@ -35,8 +33,10 @@ static PyObject *transfer(PyBuffer *self, PyObject *Py_UNUSED(args))
 {
     // for persistent buffer this function just resets data offset
 
-    if (self->flags & GL_DYNAMIC_STORAGE_BIT)
+    if (FLAG_IS_SET(self->flags, GL_DYNAMIC_STORAGE_BIT))
+    {
         glNamedBufferSubData(self->id, 0, (GLsizeiptr)self->currentOffset, self->dataPtr);
+    }
     else if (!self->isPersistent && self->dataPtr != NULL) // non-persistent buffer that was mapped before
     {
         GLboolean unmapSuccess = glUnmapNamedBuffer(self->id);
@@ -56,13 +56,12 @@ static PyObject *transfer(PyBuffer *self, PyObject *Py_UNUSED(args))
 
 static PyObject *store_address(PyBuffer *self, PyObject *args, PyObject *Py_UNUSED(kwargs))
 {
-    if (!(self->flags & GL_MAP_PERSISTENT_BIT) &&
-        !(self->flags & GL_DYNAMIC_STORAGE_BIT) &&
-        !self->dataPtr)
-    {
-        PyErr_SetString(PyExc_RuntimeError, "Non-persistent buffer has to be mapped prior to storing data.");
-        return NULL;
-    }
+    // throw an error if the buffer is not persistently mapped or dynamic and has not been mapped before
+    THROW_IF(
+        !FLAG_IS_SET(self->flags, GL_MAP_PERSISTENT_BIT) && !FLAG_IS_SET(self->flags, GL_DYNAMIC_STORAGE_BIT) && !self->dataPtr,
+        PyExc_RuntimeError,
+        "Non-persistent buffer has to be mapped prior to storing data.",
+        NULL);
 
     void *dataBuffer = NULL;
     size_t dataSize = 0;
@@ -82,7 +81,6 @@ static PyObject *store_address(PyBuffer *self, PyObject *args, PyObject *Py_UNUS
     memcpy((char *)self->dataPtr + self->currentOffset, dataBuffer, dataSize);
     self->currentOffset += dataSize;
 
-end:
     Py_RETURN_NONE;
 }
 
@@ -92,13 +90,12 @@ static PyObject *store(PyBuffer *self, PyObject *args, PyObject *kwargs)
 
     PyObject *result = NULL;
 
-    if (!(self->flags & GL_MAP_PERSISTENT_BIT) &&
-        !(self->flags & GL_DYNAMIC_STORAGE_BIT) &&
-        !self->dataPtr)
-    {
-        PyErr_SetString(PyExc_RuntimeError, "Non-persistent buffer has to be mapped prior to storing data.");
-        return NULL;
-    }
+    // throw an error if the buffer is not persistently mapped or dynamic and has not been mapped before
+    THROW_IF(
+        !FLAG_IS_SET(self->flags, GL_MAP_PERSISTENT_BIT) && !FLAG_IS_SET(self->flags, GL_DYNAMIC_STORAGE_BIT) && !self->dataPtr,
+        PyExc_RuntimeError,
+        "Non-persistent buffer has to be mapped prior to storing data.",
+        NULL);
 
     PyObject *data = NULL;
     Py_buffer dataBuffer = {0};
@@ -282,28 +279,59 @@ static void dealloc(PyBuffer *self)
     Py_TYPE(self)->tp_free(self);
 }
 
-static int init(PyBuffer *self, PyObject *args, PyObject *Py_UNUSED(kwargs))
+static int init(PyBuffer *self, PyObject *args, PyObject *kwargs)
 {
-    if (!PyArg_ParseTuple(args, "II", &self->size, &self->flags))
+    static char *kwNames[] = {"size", "flags", "data", NULL};
+
+    Py_buffer data = {0};
+    if (!PyArg_ParseTupleAndKeywords(args, kwargs, "II|y*", kwNames, &self->size, &self->flags, &data))
         return -1;
 
-    if (self->flags & GL_MAP_PERSISTENT_BIT)
+    if (FLAG_IS_SET(self->flags, GL_MAP_PERSISTENT_BIT))
     {
-        if (!(self->flags & GL_MAP_WRITE_BIT) && !(self->flags & GL_MAP_READ_BIT))
-        {
-            PyErr_SetString(PyExc_ValueError, "When using BufferFlags.MAP_PERSISTENT_BIT either BufferFlags.MAP_WRITE_BIT or BufferFlags.MAP_READ_BIT must also be set.");
-            return -1;
-        }
+        THROW_IF(
+            !FLAG_IS_SET(self->flags, GL_MAP_WRITE_BIT) && !FLAG_IS_SET(self->flags, GL_MAP_READ_BIT),
+            PyExc_ValueError,
+            "When using BufferFlags.MAP_PERSISTENT_BIT either BufferFlags.MAP_WRITE_BIT or BufferFlags.MAP_READ_BIT must also be set.",
+            -1);
 
         self->isPersistent = true;
     }
 
     glCreateBuffers(1, &self->id);
-    glNamedBufferStorage(self->id, self->size, NULL, self->flags);
 
-    if (self->flags & GL_MAP_PERSISTENT_BIT)
+    void *dataPtr = NULL;
+    if (data.obj != NULL)
+    {
+        THROW_IF(
+            data.len > self->size,
+            PyExc_RuntimeError,
+            "Provided data is bigger than the requested buffer size.",
+            -1);
+
+        dataPtr = PyMem_Malloc(self->size);
+        if (PyBuffer_ToContiguous(dataPtr, &data, self->size, 'C') == -1)
+        {
+            PyMem_Free(dataPtr);
+            PyBuffer_Release(&data);
+            PyErr_SetString(PyExc_RuntimeError, "Failed to upload provided data to the buffer.");
+
+            return -1;
+        }
+
+        PyBuffer_Release(&data);
+    }
+
+    glNamedBufferStorage(self->id, self->size, dataPtr, self->flags);
+
+    if (dataPtr != NULL)
+    {
+        PyMem_Free(dataPtr);
+    }
+
+    if (FLAG_IS_SET(self->flags, GL_MAP_PERSISTENT_BIT))
         self->dataPtr = glMapNamedBufferRange(self->id, 0, self->size, self->flags);
-    else if (self->flags & GL_DYNAMIC_STORAGE_BIT)
+    else if (FLAG_IS_SET(self->flags, GL_DYNAMIC_STORAGE_BIT))
         self->dataPtr = PyMem_Malloc(self->size);
 
     return 0;

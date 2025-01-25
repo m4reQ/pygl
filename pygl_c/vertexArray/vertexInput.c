@@ -16,7 +16,11 @@ static int py_vertexinput_init(PyVertexInput *self, PyObject *args, PyObject *kw
             &self->offset, &self->divisor))
         return -1;
 
-    if (buffer != Py_None)
+    if (Py_IsNone(buffer))
+    {
+        self->bufferId = -1;
+    }
+    else
     {
         if (!PyObject_IsInstance(buffer, (PyObject *)&pyBufferType))
         {
@@ -25,10 +29,6 @@ static int py_vertexinput_init(PyVertexInput *self, PyObject *args, PyObject *kw
         }
 
         self->bufferId = ((PyBuffer *)buffer)->id;
-    }
-    else
-    {
-        self->bufferId = -1;
     }
 
     // check types of every element in `descriptors` here to avoid later errors

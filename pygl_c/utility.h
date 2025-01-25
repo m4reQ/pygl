@@ -43,5 +43,9 @@
 #define LOG_PY_INFO(logger, msg, ...) LOG_PY(logger, "info", msg, ##__VA_ARGS__)
 #define LOG_PY_WARNING(logger, msg, ...) LOG_PY(logger, "warning", msg, ##__VA_ARGS__)
 
+#define FLAG_IS_SET(flags, x) (((flags) & (x)) == (x))
+#define FLAG_SET(flags, x) flags |= (x)
+#define FLAG_CLEAR(flags, x) flags &= ~(x)
+
 bool utils_check_buffer_contiguous(const Py_buffer *buf);
 void raise_buffer_not_contiguous(void);

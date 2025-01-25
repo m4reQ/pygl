@@ -9,6 +9,7 @@ static EnumDef bufferFlagsEnum = {
         {"MAP_PERSISTENT_BIT", GL_MAP_PERSISTENT_BIT},
         {"MAP_COHERENT_BIT", GL_MAP_COHERENT_BIT},
         {"DYNAMIC_STORAGE_BIT", GL_DYNAMIC_STORAGE_BIT},
+        {"NONE", 0},
         {0},
     },
     .isFlag = true,
@@ -50,7 +51,8 @@ static ModuleInfo modInfo = {
     .def = {
         PyModuleDef_HEAD_INIT,
         .m_name = "pygl.buffers",
-        .m_size = -1},
+        .m_size = -1,
+    },
     .enums = (EnumDef *[]){
         &bindTargetEnum,
         &bufferBaseEnum,

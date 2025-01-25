@@ -11,6 +11,7 @@ class BufferFlags(enum.IntFlag):
     MAP_PERSISTENT_BIT: int
     MAP_COHERENT_BIT: int
     DYNAMIC_STORAGE_BIT: int
+    NONE: int
 
 class BufferBaseTarget(enum.IntEnum):
     ATOMIC_COUNTER_BUFFER: int
@@ -43,9 +44,15 @@ class Buffer:
     types, such as persistent or dynamic mapping.
     '''
 
-    def __init__(self, size: int, flags: BufferFlags) -> None:
+    def __init__(self, size: int, flags: BufferFlags, data: TSupportsBuffer | None = None) -> None:
         '''
-        Create new buffer `size` bytes big.
+        Create new buffer `size` bytes big. If the data argument is specified buffer will be populated with
+        the provided data. If the data size is bigger than the `size` argument specified the exception
+        will be thrown.
+
+        Buffer constructor checks for rough validity of the `flags` argument to ensure that later oparations will
+        not fail. It doesn't mean however that it checks for all incorrect usage scenarios, only those that would
+        potentially result in a crash.
         '''
 
     @t.overload
