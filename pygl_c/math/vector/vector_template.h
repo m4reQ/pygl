@@ -375,7 +375,7 @@ static int a_set(_SELF, PyObject *value, void *Py_UNUSED(closure))
 static PyObject *vec_richcompare(_SELF, PyObject *other, int op)
 {
     if (!PyObject_IsInstance(other, (PyObject *)&_PY_TYPE))
-        Py_RETURN_NOTIMPLEMENTED;
+        Py_RETURN_FALSE;
 
     bool result = false;
     switch (op)

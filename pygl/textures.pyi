@@ -5,157 +5,158 @@ from collections.abc import Buffer as TSupportsBuffer
 from .buffers import Buffer
 
 class TextureTarget(enum.IntEnum):
-    TEXTURE_1D: int
-    TEXTURE_2D: int
-    TEXTURE_3D: int
-    TEXTURE_1D_ARRAY: int
-    TEXTURE_2D_ARRAY: int
-    TEXTURE_RECTANGLE: int
-    TEXTURE_CUBE_MAP: int
-    TEXTURE_CUBE_MAP_ARRAY: int
-    TEXTURE_BUFFER: int
-    TEXTURE_2D_MULTISAMPLE: int
-    TEXTURE_2D_MULTISAMPLE_ARRAY: int
+    TEXTURE_1D = t.cast(int, ...)
+    TEXTURE_2D = t.cast(int, ...)
+    TEXTURE_3D = t.cast(int, ...)
+    TEXTURE_1D_ARRAY = t.cast(int, ...)
+    TEXTURE_2D_ARRAY = t.cast(int, ...)
+    TEXTURE_RECTANGLE = t.cast(int, ...)
+    TEXTURE_CUBE_MAP = t.cast(int, ...)
+    TEXTURE_CUBE_MAP_ARRAY = t.cast(int, ...)
+    TEXTURE_BUFFER = t.cast(int, ...)
+    TEXTURE_2D_MULTISAMPLE = t.cast(int, ...)
+    TEXTURE_2D_MULTISAMPLE_ARRAY = t.cast(int, ...)
 
 class TextureParameter(enum.IntEnum):
-    DEPTH_STENCIL_TEXTURE_MODE: int
-    TEXTURE_BASE_LEVEL: int
-    TEXTURE_BORDER_COLOR: int
-    TEXTURE_COMPARE_FUNC: int
-    TEXTURE_COMPARE_MODE: int
-    TEXTURE_LOD_BIAS: int
-    TEXTURE_MIN_FILTER: int
-    TEXTURE_MAG_FILTER: int
-    TEXTURE_MIN_LOD: int
-    TEXTURE_MAX_LOD: int
-    TEXTURE_MAX_LEVEL: int
-    TEXTURE_SWIZZLE_R: int
-    TEXTURE_SWIZZLE_G: int
-    TEXTURE_SWIZZLE_B: int
-    TEXTURE_SWIZZLE_A: int
-    TEXTURE_SWIZZLE_RGBA: int
-    TEXTURE_WRAP_S: int
-    TEXTURE_WRAP_T: int
-    TEXTURE_WRAP_R: int
+    DEPTH_STENCIL_TEXTURE_MODE = t.cast(int, ...)
+    TEXTURE_BASE_LEVEL = t.cast(int, ...)
+    TEXTURE_BORDER_COLOR = t.cast(int, ...)
+    TEXTURE_COMPARE_FUNC = t.cast(int, ...)
+    TEXTURE_COMPARE_MODE = t.cast(int, ...)
+    TEXTURE_LOD_BIAS = t.cast(int, ...)
+    TEXTURE_MIN_FILTER = t.cast(int, ...)
+    TEXTURE_MAG_FILTER = t.cast(int, ...)
+    TEXTURE_MIN_LOD = t.cast(int, ...)
+    TEXTURE_MAX_LOD = t.cast(int, ...)
+    TEXTURE_MAX_LEVEL = t.cast(int, ...)
+    TEXTURE_SWIZZLE_R = t.cast(int, ...)
+    TEXTURE_SWIZZLE_G = t.cast(int, ...)
+    TEXTURE_SWIZZLE_B = t.cast(int, ...)
+    TEXTURE_SWIZZLE_A = t.cast(int, ...)
+    TEXTURE_SWIZZLE_RGBA = t.cast(int, ...)
+    TEXTURE_WRAP_S = t.cast(int, ...)
+    TEXTURE_WRAP_T = t.cast(int, ...)
+    TEXTURE_WRAP_R = t.cast(int, ...)
 
 class MinFilter(enum.IntEnum):
-    NEAREST: int
-    LINEAR: int
-    NEAREST_MIPMAP_NEAREST: int
-    LINEAR_MIPMAP_NEAREST: int
-    NEAREST_MIPMAP_LINEAR: int
-    LINEAR_MIPMAP_LINEAR: int
+    NEAREST = t.cast(int, ...)
+    LINEAR = t.cast(int, ...)
+    NEAREST_MIPMAP_NEAREST = t.cast(int, ...)
+    LINEAR_MIPMAP_NEAREST = t.cast(int, ...)
+    NEAREST_MIPMAP_LINEAR = t.cast(int, ...)
+    LINEAR_MIPMAP_LINEAR = t.cast(int, ...)
 
 class MagFilter(enum.IntEnum):
-    NEAREST: int
-    LINEAR: int
+    NEAREST = t.cast(int, ...)
+    LINEAR = t.cast(int, ...)
 
 class WrapMode(enum.IntEnum):
-    CLAMP_TO_EDGE: int
-    CLAMP_TO_BORDER: int
-    MIRROR_CLAMP_TO_EDGE: int
-    REPEAT: int
-    MIRRORED_REPEAT: int
+    CLAMP_TO_EDGE = t.cast(int, ...)
+    CLAMP_TO_BORDER = t.cast(int, ...)
+    MIRROR_CLAMP_TO_EDGE = t.cast(int, ...)
+    REPEAT = t.cast(int, ...)
+    MIRRORED_REPEAT = t.cast(int, ...)
 
 class InternalFormat(enum.IntEnum):
-    R8: int
-    R8_SNORM: int
-    R16: int
-    R16_SNORM: int
-    RG8: int
-    RG8_SNORM: int
-    RG16: int
-    RG16_SNORM: int
-    R3_G3_B2: int
-    RGB4: int
-    RGB5: int
-    RGB8: int
-    RGB8_SNORM: int
-    RGB10: int
-    RGB12: int
-    RGB16_SNORM: int
-    RGBA2: int
-    RGBA4: int
-    RGB5_A1: int
-    RGBA8: int
-    RGBA8_SNORM: int
-    RGB10_A2: int
-    RGB10_A2UI: int
-    RGBA12: int
-    RGBA16: int
-    SRGB8: int
-    SRGB8_ALPHA8: int
-    R16F: int
-    RG16F: int
-    RGB16F: int
-    RGBA16F: int
-    R32F: int
-    RG32F: int
-    RGB32F: int
-    RGBA32F: int
-    R11F_G11F_B10F: int
-    RGB9_E5: int
-    R8I: int
-    R8UI: int
-    R16I: int
-    R16UI: int
-    R32I: int
-    R32UI: int
-    RG8I: int
-    RG8UI: int
-    RG16I: int
-    RG16UI: int
-    RG32I: int
-    RG32UI: int
-    RGB8I: int
-    RGB8UI: int
-    RGB16I: int
-    RGB16UI: int
-    RGB32I: int
-    RGB32UI: int
-    RGBA8I: int
-    RGBA8UI: int
-    RGBA16I: int
-    RGBA16UI: int
-    RGBA32I: int
-    RGBA32UI: int
+    R8 = t.cast(int, ...)
+    R8_SNORM = t.cast(int, ...)
+    R16 = t.cast(int, ...)
+    R16_SNORM = t.cast(int, ...)
+    RG8 = t.cast(int, ...)
+    RG8_SNORM = t.cast(int, ...)
+    RG16 = t.cast(int, ...)
+    RG16_SNORM = t.cast(int, ...)
+    R3_G3_B2 = t.cast(int, ...)
+    RGB4 = t.cast(int, ...)
+    RGB5 = t.cast(int, ...)
+    RGB8 = t.cast(int, ...)
+    RGB8_SNORM = t.cast(int, ...)
+    RGB10 = t.cast(int, ...)
+    RGB12 = t.cast(int, ...)
+    RGB16 = t.cast(int, ...)
+    RGB16_SNORM = t.cast(int, ...)
+    RGBA2 = t.cast(int, ...)
+    RGBA4 = t.cast(int, ...)
+    RGB5_A1 = t.cast(int, ...)
+    RGBA8 = t.cast(int, ...)
+    RGBA8_SNORM = t.cast(int, ...)
+    RGB10_A2 = t.cast(int, ...)
+    RGB10_A2UI = t.cast(int, ...)
+    RGBA12 = t.cast(int, ...)
+    RGBA16 = t.cast(int, ...)
+    SRGB8 = t.cast(int, ...)
+    SRGB8_ALPHA8 = t.cast(int, ...)
+    R16F = t.cast(int, ...)
+    RG16F = t.cast(int, ...)
+    RGB16F = t.cast(int, ...)
+    RGBA16F = t.cast(int, ...)
+    R32F = t.cast(int, ...)
+    RG32F = t.cast(int, ...)
+    RGB32F = t.cast(int, ...)
+    RGBA32F = t.cast(int, ...)
+    R11F_G11F_B10F = t.cast(int, ...)
+    RGB9_E5 = t.cast(int, ...)
+    R8I = t.cast(int, ...)
+    R8UI = t.cast(int, ...)
+    R16I = t.cast(int, ...)
+    R16UI = t.cast(int, ...)
+    R32I = t.cast(int, ...)
+    R32UI = t.cast(int, ...)
+    RG8I = t.cast(int, ...)
+    RG8UI = t.cast(int, ...)
+    RG16I = t.cast(int, ...)
+    RG16UI = t.cast(int, ...)
+    RG32I = t.cast(int, ...)
+    RG32UI = t.cast(int, ...)
+    RGB8I = t.cast(int, ...)
+    RGB8UI = t.cast(int, ...)
+    RGB16I = t.cast(int, ...)
+    RGB16UI = t.cast(int, ...)
+    RGB32I = t.cast(int, ...)
+    RGB32UI = t.cast(int, ...)
+    RGBA8I = t.cast(int, ...)
+    RGBA8UI = t.cast(int, ...)
+    RGBA16I = t.cast(int, ...)
+    RGBA16UI = t.cast(int, ...)
+    RGBA32I = t.cast(int, ...)
+    RGBA32UI = t.cast(int, ...)
 
 class CompressedInternalFormat(enum.IntEnum):
-    COMPRESSED_RGB_S3TC_DXT1_EXT: int
-    COMPRESSED_RGBA_S3TC_DXT1_EXT: int
-    COMPRESSED_RGBA_S3TC_DXT3_EXT: int
-    COMPRESSED_RGBA_S3TC_DXT5_EXT: int
+    COMPRESSED_RGB_S3TC_DXT1_EXT = t.cast(int, ...)
+    COMPRESSED_RGBA_S3TC_DXT1_EXT = t.cast(int, ...)
+    COMPRESSED_RGBA_S3TC_DXT3_EXT = t.cast(int, ...)
+    COMPRESSED_RGBA_S3TC_DXT5_EXT = t.cast(int, ...)
 
 class PixelFormat(enum.IntEnum):
-    RED: int
-    RG: int
-    RGB: int
-    BGR: int
-    RGBA: int
-    BGRA: int
-    DEPTH_COMPONENT: int
-    STENCIL_INDEX: int
+    RED = t.cast(int, ...)
+    RG = t.cast(int, ...)
+    RGB = t.cast(int, ...)
+    BGR = t.cast(int, ...)
+    RGBA = t.cast(int, ...)
+    BGRA = t.cast(int, ...)
+    DEPTH_COMPONENT = t.cast(int, ...)
+    STENCIL_INDEX = t.cast(int, ...)
 
 class PixelType(enum.IntEnum):
-    UNSIGNED_BYTE: int
-    BYTE: int
-    UNSIGNED_SHORT: int
-    SHORT: int
-    UNSIGNED_INT: int
-    INT: int
-    FLOAT: int
-    UNSIGNED_BYTE_3_3_2: int
-    UNSIGNED_BYTE_2_3_3_REV: int
-    UNSIGNED_SHORT_5_6_5: int
-    UNSIGNED_SHORT_5_6_5_REV: int
-    UNSIGNED_SHORT_4_4_4_4: int
-    UNSIGNED_SHORT_4_4_4_4_REV: int
-    UNSIGNED_SHORT_5_5_5_1: int
-    UNSIGNED_SHORT_1_5_5_5_REV: int
-    UNSIGNED_INT_8_8_8_8: int
-    UNSIGNED_INT_8_8_8_8_REV: int
-    UNSIGNED_INT_10_10_10_2: int
-    UNSIGNED_INT_2_10_10_10_REV: int
+    UNSIGNED_BYTE = t.cast(int, ...)
+    BYTE = t.cast(int, ...)
+    UNSIGNED_SHORT = t.cast(int, ...)
+    SHORT = t.cast(int, ...)
+    UNSIGNED_INT = t.cast(int, ...)
+    INT = t.cast(int, ...)
+    FLOAT = t.cast(int, ...)
+    UNSIGNED_BYTE_3_3_2 = t.cast(int, ...)
+    UNSIGNED_BYTE_2_3_3_REV = t.cast(int, ...)
+    UNSIGNED_SHORT_5_6_5 = t.cast(int, ...)
+    UNSIGNED_SHORT_5_6_5_REV = t.cast(int, ...)
+    UNSIGNED_SHORT_4_4_4_4 = t.cast(int, ...)
+    UNSIGNED_SHORT_4_4_4_4_REV = t.cast(int, ...)
+    UNSIGNED_SHORT_5_5_5_1 = t.cast(int, ...)
+    UNSIGNED_SHORT_1_5_5_5_REV = t.cast(int, ...)
+    UNSIGNED_INT_8_8_8_8 = t.cast(int, ...)
+    UNSIGNED_INT_8_8_8_8_REV = t.cast(int, ...)
+    UNSIGNED_INT_10_10_10_2 = t.cast(int, ...)
+    UNSIGNED_INT_2_10_10_10_REV = t.cast(int, ...)
 
 class TextureSpec:
     target: int
