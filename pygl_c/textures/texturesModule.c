@@ -24,7 +24,7 @@ static PyObject *set_pixel_pack_alignment(PyObject *Py_UNUSED(self), PyObject *a
 
 static PyObject *set_pixel_unpack_alignment(PyObject *Py_UNUSED(self), PyObject *alignment)
 {
-    return set_pixel_storei(GL_PACK_ALIGNMENT, alignment);
+    return set_pixel_storei(GL_UNPACK_ALIGNMENT, alignment);
 }
 
 static PyObject *bind_texture_ids(PyObject *Py_UNUSED(cls), PyObject *args, PyObject *kwargs)

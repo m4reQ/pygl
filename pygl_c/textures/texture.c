@@ -69,17 +69,6 @@ static size_t get_pixel_type_size(GLenum type)
     return 0;
 }
 
-static size_t get_data_offset(const PyUploadInfo *info)
-{
-    if (info->dataOffset > 0)
-        return info->dataOffset;
-
-    size_t xOffset = info->xOffset;
-    size_t yOffset = info->yOffset * info->width;
-    size_t zOffset = info->zOffset * info->width * info->height;
-    return (xOffset + yOffset + zOffset) * get_pixel_type_size(info->pixelType);
-}
-
 static size_t get_data_length(const PyUploadInfo *info)
 {
     if (info->imageSize > 0)
@@ -88,31 +77,19 @@ static size_t get_data_length(const PyUploadInfo *info)
     return info->width * info->height * info->depth * get_pixel_type_size(info->pixelType);
 }
 
-static void *get_data_ptr(const Py_buffer *buffer, const PyUploadInfo *info)
-{
-    if (buffer == NULL)
-        return NULL;
-
-    size_t offsetBytes = get_data_offset(info);
-    size_t lengthBytes = get_data_length(info);
-
-    return (char *)buffer->buf + offsetBytes;
-}
-
 static bool check_buffer_length(const PyUploadInfo *uploadInfo, const Py_buffer *buffer)
 {
     if (buffer == NULL)
         return true;
 
-    size_t offsetBytes = get_data_offset(uploadInfo);
     size_t lengthBytes = get_data_length(uploadInfo);
 
-    if (offsetBytes + lengthBytes > buffer->len)
+    if (uploadInfo->dataOffset + lengthBytes > buffer->len)
     {
         PyErr_Format(
             PyExc_BufferError,
             "Requested transfer data size exceeds provided buffer size (offset: %zu, calculated: %zu, provided: %zu).",
-            offsetBytes,
+            uploadInfo->dataOffset,
             lengthBytes,
             buffer->len);
         return false;
@@ -121,18 +98,13 @@ static bool check_buffer_length(const PyUploadInfo *uploadInfo, const Py_buffer 
     return true;
 }
 
-static bool upload_texture_1d(PyTexture *texture, const PyUploadInfo *info, const Py_buffer *buffer)
+static bool upload_texture_1d(PyTexture *texture, const PyUploadInfo *info, const void *dataPtr)
 {
     if (info->width <= 0 || info->xOffset < 0)
     {
         PyErr_SetString(PyExc_ValueError, "1D texture upload requires width to be greater than 0 and x_offset to be non-negative.");
         return false;
     }
-
-    if (!check_buffer_length(info, buffer))
-        return false;
-
-    const void *dataPtr = get_data_ptr(buffer, info);
 
     if (info->imageSize != 0)
         glCompressedTextureSubImage1D(
@@ -156,7 +128,7 @@ static bool upload_texture_1d(PyTexture *texture, const PyUploadInfo *info, cons
     return true;
 }
 
-static bool upload_texture_2d(PyTexture *texture, const PyUploadInfo *info, const Py_buffer *buffer)
+static bool upload_texture_2d(PyTexture *texture, const PyUploadInfo *info, const void *dataPtr)
 {
     if (info->width <= 0 ||
         info->height <= 0 ||
@@ -166,11 +138,6 @@ static bool upload_texture_2d(PyTexture *texture, const PyUploadInfo *info, cons
         PyErr_SetString(PyExc_ValueError, "2D texture upload requires width and height to be greater than 0 and x_offset, y_offset to be non-negative.");
         return false;
     }
-
-    if (!check_buffer_length(info, buffer))
-        return false;
-
-    const void *dataPtr = get_data_ptr(buffer, info);
 
     if (info->imageSize != 0)
         glCompressedTextureSubImage2D(
@@ -198,7 +165,7 @@ static bool upload_texture_2d(PyTexture *texture, const PyUploadInfo *info, cons
     return true;
 }
 
-static bool upload_texture_3d(PyTexture *texture, const PyUploadInfo *info, const Py_buffer *buffer)
+static bool upload_texture_3d(PyTexture *texture, const PyUploadInfo *info, const void *dataPtr)
 {
     if (info->width <= 0 ||
         info->height <= 0 ||
@@ -210,11 +177,6 @@ static bool upload_texture_3d(PyTexture *texture, const PyUploadInfo *info, cons
         PyErr_SetString(PyExc_ValueError, "3D texture upload requires width, height and depth to be greater than 0 and x_offset, y_offset, z_offset to be non-negative.");
         return false;
     }
-
-    if (!check_buffer_length(info, buffer))
-        return false;
-
-    const void *dataPtr = get_data_ptr(buffer, info);
 
     if (info->imageSize != 0)
         glCompressedTextureSubImage3D(
@@ -495,31 +457,34 @@ static PyObject *upload(PyTexture *self, PyObject *args)
         return NULL;
 
     Py_buffer buffer = {0};
-    const Py_buffer *bufferPtr = NULL;
+    void *dataPtr = NULL;
 
     if (!Py_IsNone(bufferObject))
     {
         if (PyObject_GetBuffer(bufferObject, &buffer, PyBUF_READ | PyBUF_C_CONTIGUOUS))
         {
             PyErr_Format(PyExc_TypeError, "Expected data to be an object that is a c-contiguous readable buffer or None, got: %s.", Py_TYPE(bufferObject)->tp_name);
-            return NULL;
+            goto end;
         }
 
-        bufferPtr = &buffer;
+        if (!check_buffer_length(info, &buffer))
+            goto end;
+
+        dataPtr = (char *)buffer.buf + info->dataOffset;
     }
 
     bool uploadSuccess = false;
     if (self->target == GL_TEXTURE_1D)
-        uploadSuccess = upload_texture_1d(self, info, bufferPtr);
+        uploadSuccess = upload_texture_1d(self, info, dataPtr);
     else if (self->target == GL_TEXTURE_1D_ARRAY ||
              self->target == GL_TEXTURE_2D ||
              self->target == GL_TEXTURE_2D_MULTISAMPLE)
-        uploadSuccess = upload_texture_2d(self, info, bufferPtr);
+        uploadSuccess = upload_texture_2d(self, info, dataPtr);
     else if (self->target == GL_TEXTURE_3D ||
              self->target == GL_TEXTURE_2D_ARRAY ||
              self->target == GL_TEXTURE_2D_MULTISAMPLE_ARRAY ||
              self->target == GL_TEXTURE_CUBE_MAP)
-        uploadSuccess = upload_texture_3d(self, info, bufferPtr);
+        uploadSuccess = upload_texture_3d(self, info, dataPtr);
     else
     {
         // TODO Implement support for array cubemap textures
