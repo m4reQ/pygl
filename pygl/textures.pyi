@@ -158,6 +158,16 @@ class PixelType(enum.IntEnum):
     UNSIGNED_INT_10_10_10_2 = t.cast(int, ...)
     UNSIGNED_INT_2_10_10_10_REV = t.cast(int, ...)
 
+class TextureSwizzle(enum.IntEnum):
+    RED = t.cast(int, ...)
+    RG = t.cast(int, ...)
+    RGB = t.cast(int, ...)
+    BGR = t.cast(int, ...)
+    RGBA = t.cast(int, ...)
+    BGRA = t.cast(int, ...)
+    DEPTH_COMPONENT = t.cast(int, ...)
+    STENCIL_INDEX = t.cast(int, ...)
+
 class TextureSpec:
     target: int
 
@@ -174,6 +184,8 @@ class TextureSpec:
     mag_filter: int
     wrap_mode: int
 
+    swizzle_mask: t.Sequence[int]
+
     def __init__(self,
                  target: TextureTarget,
                  width: int,
@@ -184,7 +196,8 @@ class TextureSpec:
                  mipmaps: int = 1,
                  min_filter: MinFilter = MinFilter.LINEAR,
                  mag_filter: MagFilter = MagFilter.LINEAR,
-                 wrap_mode: WrapMode = WrapMode.CLAMP_TO_EDGE) -> None: ...
+                 wrap_mode: WrapMode = WrapMode.CLAMP_TO_EDGE,
+                 swizzle_mask: t.Sequence[int] | None = None) -> None: ...
 
     @property
     def size(self) -> tuple[int, int, int]: ...
@@ -192,7 +205,7 @@ class TextureSpec:
     @property
     def is_multisampled(self) -> bool: ...
 
-class UploadInfo:
+class TextureUploadInfo:
     width: int
     height: int
     depth: int
@@ -210,6 +223,8 @@ class UploadInfo:
 
     generate_mipmap: bool
 
+    alignment: int
+
     def __init__(self,
                  format: PixelFormat | CompressedInternalFormat,
                  width: int,
@@ -219,6 +234,7 @@ class UploadInfo:
                  y_offset: int = 0,
                  z_offset: int = 0,
                  level: int = 0,
+                 alignment: t.Literal[1, 2, 4, 8] = 4,
                  pixel_type: PixelType = PixelType.UNSIGNED_BYTE,
                  image_size: int = 0,
                  data_offset: int = 0,
@@ -233,7 +249,7 @@ class Texture:
     def delete(self) -> None: ...
     def bind(self) -> None: ...
     def bind_to_unit(self, unit: int) -> None: ...
-    def upload(self, info: UploadInfo, data: TSupportsBuffer | None) -> None: ...
+    def upload(self, info: TextureUploadInfo, data: TSupportsBuffer | None) -> None: ...
     def set_parameter(self, parameter: TextureParameter, value: int) -> None: ...
     def generate_mipmap(self) -> None: ...
     def set_texture_buffer(self, buffer: Buffer) -> None: ...

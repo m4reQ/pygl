@@ -1,15 +1,5 @@
-#include "textureSpec.h"
+#include "texture.h"
 #include <glad/gl.h>
-
-static void set_defaults(PyTextureSpec *self)
-{
-    self->depth = 1;
-    self->samples = 1;
-    self->mipmaps = 1;
-    self->minFilter = GL_LINEAR;
-    self->magFilter = GL_LINEAR;
-    self->wrapMode = GL_CLAMP_TO_EDGE;
-}
 
 static int init(PyTextureSpec *self, PyObject *args, PyObject *kwargs)
 {
@@ -19,41 +9,33 @@ static int init(PyTextureSpec *self, PyObject *args, PyObject *kwargs)
         "height",
         "internal_format",
         /* optional */
-        "depth",      // = 1
-        "samples",    // = 1
-        "mipmaps",    // = 1
-        "min_filter", // = GL_LINEAR
-        "mag_filter", // = GL_LINEAR
-        "wrap_mode",  // = GL_CLAMP_TO_EDGE
+        "depth",        // = 1
+        "samples",      // = 1
+        "mipmaps",      // = 1
+        "min_filter",   // = GL_LINEAR
+        "mag_filter",   // = GL_LINEAR
+        "wrap_mode",    // = GL_CLAMP_TO_EDGE
+        "swizzle_mask", // = NULL
         NULL,
     };
 
-    set_defaults(self);
+    self->depth = 1;
+    self->samples = 1;
+    self->mipmaps = 1;
+    self->minFilter = GL_LINEAR;
+    self->magFilter = GL_LINEAR;
+    self->wrapMode = GL_CLAMP_TO_EDGE;
+    self->swizzleMask = NULL;
+
     if (!PyArg_ParseTupleAndKeywords(
-            args, kwargs, "IiiI|iiiIII", kwNames,
+            args, kwargs, "IiiI|iiiIIIO", kwNames,
             &self->target,
             &self->width, &self->height, &self->internalFormat,
             &self->depth, &self->samples, &self->mipmaps,
-            &self->minFilter, &self->magFilter, &self->wrapMode))
+            &self->minFilter, &self->magFilter, &self->wrapMode, &self->swizzleMask))
         return -1;
 
-    if (self->samples < 0)
-    {
-        PyErr_SetString(PyExc_ValueError, "Samples count has to be higher than 0.");
-        return -1;
-    }
-
-    if (self->mipmaps < 0)
-    {
-        PyErr_SetString(PyExc_ValueError, "Mipmaps count has to be higher than 0.");
-        return -1;
-    }
-
-    if (self->width < 0 || self->height < 0 || self->depth < 0)
-    {
-        PyErr_SetString(PyExc_ValueError, "Texture size has to be higher than 0.");
-        return -1;
-    }
+    Py_XINCREF(self->swizzleMask);
 
     return 0;
 }
@@ -74,7 +56,7 @@ static PyObject *get_is_multisampled(PyTextureSpec *self, void *Py_UNUSED(closur
 
 PyTypeObject pyTextureSpecType = {
     PyVarObject_HEAD_INIT(NULL, 0)
-        .tp_flags = Py_TPFLAGS_DEFAULT,
+    .tp_flags = Py_TPFLAGS_DEFAULT,
     .tp_new = PyType_GenericNew,
     .tp_name = "pygl.textures.TextureSpec",
     .tp_basicsize = sizeof(PyTextureSpec),

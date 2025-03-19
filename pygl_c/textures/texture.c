@@ -1,104 +1,89 @@
 #include <stdbool.h>
 #include "../buffers/buffer.h"
 #include "texture.h"
-#include "textureSpec.h"
-#include "uploadInfo.h"
 
-static const char *target_enum_to_string(GLenum target)
+static bool Create1DTextureStorage(const PyTexture *texture, const PyTextureSpec *spec)
 {
-    switch (target)
+    if (texture->width <= 0)
     {
-    case GL_TEXTURE_1D:
-        return "TEXTURE_1D";
-    case GL_TEXTURE_2D:
-        return "TEXTURE_2D";
-    case GL_TEXTURE_3D:
-        return "TEXTURE_3D";
-    case GL_TEXTURE_1D_ARRAY:
-        return "TEXTURE_1D_ARRAY";
-    case GL_TEXTURE_2D_ARRAY:
-        return "TEXTURE_2D_ARRAY";
-    case GL_TEXTURE_RECTANGLE:
-        return "TEXTURE_RECTANGLE";
-    case GL_TEXTURE_CUBE_MAP:
-        return "TEXTURE_CUBE_MAP";
-    case GL_TEXTURE_CUBE_MAP_ARRAY:
-        return "TEXTURE_CUBE_MAP_ARRAY";
-    case GL_TEXTURE_BUFFER:
-        return "TEXTURE_BUFFER";
-    case GL_TEXTURE_2D_MULTISAMPLE:
-        return "TEXTURE_2D_MULTISAMPLE";
-    case GL_TEXTURE_2D_MULTISAMPLE_ARRAY:
-        return "TEXTURE_2D_MULTISAMPLE_ARRAY";
+        PyErr_SetString(PyExc_ValueError, "Texture width must be positive for 1D texture.");
+        return false;
     }
 
-    assert(false && "Unreachable at texture.c:target_enum_to_string");
-    return NULL;
+    glTextureStorage1D(texture->id, spec->mipmaps, spec->internalFormat, texture->width);
+    return true;
 }
 
-static size_t get_pixel_type_size(GLenum type)
+static bool Create2DTextureStorage(const PyTexture *texture, const PyTextureSpec *spec)
 {
-    switch (type)
+    if (texture->width <= 0 || texture->height <= 0)
     {
-    case GL_BYTE:
-    case GL_UNSIGNED_BYTE:
-    case GL_UNSIGNED_BYTE_3_3_2:
-    case GL_UNSIGNED_BYTE_2_3_3_REV:
-        return sizeof(GLbyte);
-    case GL_SHORT:
-    case GL_UNSIGNED_SHORT:
-    case GL_UNSIGNED_SHORT_5_6_5:
-    case GL_UNSIGNED_SHORT_5_6_5_REV:
-    case GL_UNSIGNED_SHORT_4_4_4_4:
-    case GL_UNSIGNED_SHORT_4_4_4_4_REV:
-    case GL_UNSIGNED_SHORT_5_5_5_1:
-    case GL_UNSIGNED_SHORT_1_5_5_5_REV:
-        return sizeof(GLshort);
-    case GL_INT:
-    case GL_UNSIGNED_INT:
-    case GL_UNSIGNED_INT_8_8_8_8:
-    case GL_UNSIGNED_INT_8_8_8_8_REV:
-    case GL_UNSIGNED_INT_10_10_10_2:
-    case GL_UNSIGNED_INT_2_10_10_10_REV:
-        return sizeof(GLint);
-    case GL_FLOAT:
-        return sizeof(GLfloat);
+        PyErr_SetString(PyExc_ValueError, "Texture width and height must be positive for 2D texture or 1D texture array.");
+        return false;
     }
 
-    assert(0 && "Unreachable at textureBase::get_pixel_type_size");
-    return 0;
+    if (texture->target == GL_TEXTURE_2D_MULTISAMPLE)
+        glTextureStorage2DMultisample(
+            texture->id,
+            spec->samples,
+            spec->internalFormat,
+            texture->width,
+            texture->height,
+            GL_TRUE);
+    else
+        glTextureStorage2D(
+            texture->id,
+            texture->mipmaps,
+            spec->internalFormat,
+            texture->width,
+            texture->height);
+
+    return true;
 }
 
-static size_t get_data_length(const PyUploadInfo *info)
+static bool Create3DTextureStorage(const PyTexture *texture, const PyTextureSpec *spec)
 {
-    if (info->imageSize > 0)
-        return info->imageSize;
-
-    return info->width * info->height * info->depth * get_pixel_type_size(info->pixelType);
-}
-
-static bool check_buffer_length(const PyUploadInfo *uploadInfo, const Py_buffer *buffer)
-{
-    if (buffer == NULL)
-        return true;
-
-    size_t lengthBytes = get_data_length(uploadInfo);
-
-    if (uploadInfo->dataOffset + lengthBytes > buffer->len)
+    if (texture->width <= 0 || texture->height <= 0 || texture->depth <= 0)
     {
-        PyErr_Format(
-            PyExc_BufferError,
-            "Requested transfer data size exceeds provided buffer size (offset: %zu, calculated: %zu, provided: %zu).",
-            uploadInfo->dataOffset,
-            lengthBytes,
-            buffer->len);
+        PyErr_SetString(PyExc_ValueError, "Texture width, height and depth must be positive for 3D texture, 2D array texture or cubemap texture.");
+        return false;
+    }
+
+    if (texture->target == GL_TEXTURE_2D_MULTISAMPLE_ARRAY)
+        glTextureStorage3DMultisample(
+            texture->id,
+            spec->samples,
+            spec->internalFormat,
+            texture->width,
+            texture->height,
+            texture->depth,
+            GL_TRUE);
+    else
+        glTextureStorage3D(
+            texture->id,
+            texture->mipmaps,
+            spec->internalFormat,
+            texture->width,
+            texture->height,
+            texture->depth);
+
+    return true;
+}
+
+static bool CheckTextureImmutableFormat(GLuint textureID)
+{
+    GLint immutableFormat = GL_FALSE;
+    glGetTextureParameteriv(textureID, GL_TEXTURE_IMMUTABLE_FORMAT, &immutableFormat);
+    if (!immutableFormat)
+    {
+        PyErr_SetString(PyExc_RuntimeError, "Couldn't create immutable texture storage.");
         return false;
     }
 
     return true;
 }
 
-static bool upload_texture_1d(PyTexture *texture, const PyUploadInfo *info, const void *dataPtr)
+static bool UploadTexture1D(PyTexture *texture, const PyTextureUploadInfo *info, const void *dataPtr)
 {
     if (info->width <= 0 || info->xOffset < 0)
     {
@@ -128,7 +113,7 @@ static bool upload_texture_1d(PyTexture *texture, const PyUploadInfo *info, cons
     return true;
 }
 
-static bool upload_texture_2d(PyTexture *texture, const PyUploadInfo *info, const void *dataPtr)
+static bool UploadTexture2D(PyTexture *texture, const PyTextureUploadInfo *info, const void *dataPtr)
 {
     if (info->width <= 0 ||
         info->height <= 0 ||
@@ -165,7 +150,7 @@ static bool upload_texture_2d(PyTexture *texture, const PyUploadInfo *info, cons
     return true;
 }
 
-static bool upload_texture_3d(PyTexture *texture, const PyUploadInfo *info, const void *dataPtr)
+static bool UploadTexture3D(PyTexture *texture, const PyTextureUploadInfo *info, const void *dataPtr)
 {
     if (info->width <= 0 ||
         info->height <= 0 ||
@@ -208,112 +193,113 @@ static bool upload_texture_3d(PyTexture *texture, const PyUploadInfo *info, cons
     return true;
 }
 
-static bool create_1d_texture_storage(const PyTexture *texture, const PyTextureSpec *spec)
+static bool Requires2DUpload(GLenum textureTarget)
 {
-    if (texture->width <= 0)
+    return textureTarget == GL_TEXTURE_1D_ARRAY ||
+           textureTarget == GL_TEXTURE_2D ||
+           textureTarget == GL_TEXTURE_2D_MULTISAMPLE;
+}
+
+static bool Requires3DUpload(GLenum textureTarget)
+{
+    return textureTarget == GL_TEXTURE_3D ||
+           textureTarget == GL_TEXTURE_2D_ARRAY ||
+           textureTarget == GL_TEXTURE_2D_MULTISAMPLE_ARRAY ||
+           textureTarget == GL_TEXTURE_CUBE_MAP;
+}
+
+static const char *TextureTargetToString(GLenum target)
+{
+    switch (target)
     {
-        PyErr_SetString(PyExc_ValueError, "Texture width must be positive for 1D texture.");
+    case GL_TEXTURE_1D:
+        return "TEXTURE_1D";
+    case GL_TEXTURE_2D:
+        return "TEXTURE_2D";
+    case GL_TEXTURE_3D:
+        return "TEXTURE_3D";
+    case GL_TEXTURE_1D_ARRAY:
+        return "TEXTURE_1D_ARRAY";
+    case GL_TEXTURE_2D_ARRAY:
+        return "TEXTURE_2D_ARRAY";
+    case GL_TEXTURE_RECTANGLE:
+        return "TEXTURE_RECTANGLE";
+    case GL_TEXTURE_CUBE_MAP:
+        return "TEXTURE_CUBE_MAP";
+    case GL_TEXTURE_CUBE_MAP_ARRAY:
+        return "TEXTURE_CUBE_MAP_ARRAY";
+    case GL_TEXTURE_BUFFER:
+        return "TEXTURE_BUFFER";
+    case GL_TEXTURE_2D_MULTISAMPLE:
+        return "TEXTURE_2D_MULTISAMPLE";
+    case GL_TEXTURE_2D_MULTISAMPLE_ARRAY:
+        return "TEXTURE_2D_MULTISAMPLE_ARRAY";
+    default:
+        return "UNKNOWN";
+    }
+}
+
+static Py_ssize_t PixelTypeToSize(GLenum pixelType)
+{
+    switch (pixelType)
+    {
+    case GL_BYTE:
+    case GL_UNSIGNED_BYTE:
+    case GL_UNSIGNED_BYTE_3_3_2:
+    case GL_UNSIGNED_BYTE_2_3_3_REV:
+        return sizeof(GLbyte);
+    case GL_SHORT:
+    case GL_UNSIGNED_SHORT:
+    case GL_UNSIGNED_SHORT_5_6_5:
+    case GL_UNSIGNED_SHORT_5_6_5_REV:
+    case GL_UNSIGNED_SHORT_4_4_4_4:
+    case GL_UNSIGNED_SHORT_4_4_4_4_REV:
+    case GL_UNSIGNED_SHORT_5_5_5_1:
+    case GL_UNSIGNED_SHORT_1_5_5_5_REV:
+        return sizeof(GLshort);
+    case GL_INT:
+    case GL_UNSIGNED_INT:
+    case GL_UNSIGNED_INT_8_8_8_8:
+    case GL_UNSIGNED_INT_8_8_8_8_REV:
+    case GL_UNSIGNED_INT_10_10_10_2:
+    case GL_UNSIGNED_INT_2_10_10_10_REV:
+        return sizeof(GLint);
+    case GL_FLOAT:
+        return sizeof(GLfloat);
+    default:
+        return 0;
+    }
+}
+
+static bool CheckDataBufferLength(const PyTextureUploadInfo *uploadInfo, const Py_buffer *buffer)
+{
+    if (buffer == NULL)
+        return true;
+
+    Py_ssize_t lengthBytes = (uploadInfo->imageSize > 0)
+                                 ? uploadInfo->imageSize
+                                 : uploadInfo->width * uploadInfo->height * uploadInfo->depth * PixelTypeToSize(uploadInfo->pixelType);
+
+    if (uploadInfo->dataOffset + lengthBytes > buffer->len)
+    {
+        PyErr_Format(
+            PyExc_RuntimeError,
+            "Requested transfer data size exceeds provided buffer size (offset: %zu, calculated: %zu, provided: %zu).",
+            uploadInfo->dataOffset,
+            lengthBytes,
+            buffer->len);
         return false;
     }
 
-    glTextureStorage1D(texture->id, spec->mipmaps, spec->internalFormat, texture->width);
     return true;
 }
 
-static bool create_2d_texture_storage(const PyTexture *texture, const PyTextureSpec *spec)
-{
-    if (texture->width <= 0 || texture->height <= 0)
-    {
-        PyErr_SetString(PyExc_ValueError, "Texture width and height must be positive for 2D texture or 1D texture array.");
-        return false;
-    }
-
-    if (texture->target == GL_TEXTURE_2D_MULTISAMPLE)
-        glTextureStorage2DMultisample(
-            texture->id,
-            spec->samples,
-            spec->internalFormat,
-            texture->width,
-            texture->height,
-            GL_TRUE);
-    else
-        glTextureStorage2D(
-            texture->id,
-            texture->mipmaps,
-            spec->internalFormat,
-            texture->width,
-            texture->height);
-
-    return true;
-}
-
-static bool create_3d_texture_storage(const PyTexture *texture, const PyTextureSpec *spec)
-{
-    if (texture->width < 0 || texture->height < 0 || texture->depth < 0)
-    {
-        PyErr_SetString(PyExc_ValueError, "Texture width, height and depth must be positive for 3D texture, 2D array texture or cubemap texture.");
-        return false;
-    }
-
-    if (texture->target == GL_TEXTURE_2D_MULTISAMPLE_ARRAY)
-        glTextureStorage3DMultisample(
-            texture->id,
-            spec->samples,
-            spec->internalFormat,
-            texture->width,
-            texture->height,
-            texture->depth,
-            GL_TRUE);
-    else
-        glTextureStorage3D(
-            texture->id,
-            texture->mipmaps,
-            spec->internalFormat,
-            texture->width,
-            texture->height,
-            texture->depth);
-
-    return true;
-}
-
-static bool check_texture_immutable_format(const PyTexture *texture)
-{
-    GLint immutableFormat = GL_FALSE;
-    glGetTextureParameteriv(texture->id, GL_TEXTURE_IMMUTABLE_FORMAT, &immutableFormat);
-    if (!immutableFormat)
-    {
-        PyErr_SetString(PyExc_RuntimeError, "Couldn't create immutable texture storage.");
-        return false;
-    }
-
-    return true;
-}
-
-static PyObject *repr(PyTexture *self)
-{
-    return PyUnicode_FromFormat(
-        "<%s object at %p [target: %s, width: %d, height: %d, depth: %d, mipmaps: %d]>",
-        Py_TYPE(self)->tp_name,
-        self,
-        target_enum_to_string(self->target),
-        self->width,
-        self->height,
-        self->depth,
-        self->mipmaps);
-}
-
-static void dealloc(PyTexture *self)
-{
-    glDeleteTextures(1, &self->id);
-    Py_TYPE(self)->tp_free(self);
-}
-
-static int init(PyTexture *self, PyObject *args, PyObject *kwargs)
+static int PyTexture_init(PyTexture *self, PyObject *args, PyObject *kwargs)
 {
     static char *kwNames[] = {"spec", "set_parameters", NULL};
 
     PyTextureSpec *spec;
-    bool setParameters = false;
+    bool setParameters = true;
     if (!PyArg_ParseTupleAndKeywords(args, kwargs, "O!|p", kwNames, &pyTextureSpecType, &spec, &setParameters))
         return -1;
 
@@ -331,7 +317,7 @@ static int init(PyTexture *self, PyObject *args, PyObject *kwargs)
     }
     else
     {
-        if (self->mipmaps < 0)
+        if (self->mipmaps <= 0)
         {
             PyErr_SetString(PyExc_ValueError, "Mipmaps count for texture must be positive.");
             return -1;
@@ -342,20 +328,20 @@ static int init(PyTexture *self, PyObject *args, PyObject *kwargs)
 
     bool storageCreateSuccess = false;
     if (self->target == GL_TEXTURE_1D)
-        storageCreateSuccess = create_1d_texture_storage(self, spec);
+        storageCreateSuccess = Create1DTextureStorage(self, spec);
     else if (self->target == GL_TEXTURE_1D_ARRAY ||
              self->target == GL_TEXTURE_2D ||
              self->target == GL_TEXTURE_2D_MULTISAMPLE)
-        storageCreateSuccess = create_2d_texture_storage(self, spec);
+        storageCreateSuccess = Create2DTextureStorage(self, spec);
     else if (self->target == GL_TEXTURE_2D_ARRAY ||
              self->target == GL_TEXTURE_2D_MULTISAMPLE_ARRAY ||
              self->target == GL_TEXTURE_3D ||
              self->target == GL_TEXTURE_CUBE_MAP)
-        storageCreateSuccess = create_3d_texture_storage(self, spec);
+        storageCreateSuccess = Create3DTextureStorage(self, spec);
     else if (self->target == GL_TEXTURE_BUFFER)
         storageCreateSuccess = true;
 
-    if (!storageCreateSuccess)
+    if (!storageCreateSuccess || (self->target != GL_TEXTURE_BUFFER && !CheckTextureImmutableFormat(self->id)))
         return -1;
 
     if (setParameters)
@@ -367,53 +353,74 @@ static int init(PyTexture *self, PyObject *args, PyObject *kwargs)
         glTextureParameteri(self->id, GL_TEXTURE_WRAP_S, (GLint)spec->wrapMode);
         glTextureParameteri(self->id, GL_TEXTURE_WRAP_R, (GLint)spec->wrapMode);
         glTextureParameteri(self->id, GL_TEXTURE_WRAP_T, (GLint)spec->wrapMode);
-    }
 
-    if (self->target != GL_TEXTURE_BUFFER && !check_texture_immutable_format(self))
-        return -1;
+        PyObject *swizzleMaskObj = PySequence_Fast(spec->swizzleMask, "TextureSpec.swizzle_mask must be a sequence.");
+        if (!swizzleMaskObj)
+            return -1;
+
+        if (PySequence_Fast_GET_SIZE(swizzleMaskObj) != 4)
+        {
+            PyErr_SetString(PyExc_ValueError, "TextureSpec.swizzle_mask must be of length 4.");
+            return -1;
+        }
+
+        GLuint swizzleMask[4];
+        for (Py_ssize_t i = 0; i < 4; i++)
+        {
+            PyObject *value = PySequence_Fast_GET_ITEM(swizzleMaskObj, i);
+            swizzleMask[i] = PyLong_AsUnsignedLong(value);
+            if (PyErr_Occurred())
+                return -1;
+        }
+
+        glTextureParameteriv(self->id, GL_TEXTURE_SWIZZLE_RGBA, swizzleMask);
+    }
 
     return 0;
 }
 
-static PyObject *delete(PyTexture *self, PyObject *Py_UNUSED(args))
+static PyObject *PyTexture_repr(PyTexture *self)
 {
-    glDeleteTextures(1, &self->id);
-    self->id = 0;
+    return PyUnicode_FromFormat(
+        "<%s object at %p [target: %s, width: %d, height: %d, depth: %d, mipmaps: %d]>",
+        Py_TYPE(self)->tp_name,
+        self,
+        TextureTargetToString(self->target),
+        self->width,
+        self->height,
+        self->depth,
+        self->mipmaps);
+}
 
+static PyObject *PyTexture_delete(PyTexture *self, PyObject *args)
+{
+    (void)args;
+    glDeleteTextures(1, &self->id);
     Py_RETURN_NONE;
 }
 
-static PyObject *bind(PyTexture *self, PyObject *Py_UNUSED(args))
+static PyObject *PyTexture_bind(PyTexture *self, PyObject *args)
 {
+    (void)args;
     glBindTexture(self->target, self->id);
     Py_RETURN_NONE;
 }
 
-static PyObject *bind_to_unit(PyTexture *self, PyObject *unit)
+static PyObject *PyTexture_bind_to_unit(PyTexture *self, PyObject *textureUnit)
 {
-    if (!PyLong_Check(unit))
-    {
-        PyErr_Format(PyExc_TypeError, "Expected argument to be of type int, got: %s.", Py_TYPE(unit)->tp_name);
+    GLuint _textureUnit = PyLong_AsUnsignedLong(textureUnit);
+    if (PyErr_Occurred())
         return NULL;
-    }
 
-    GLint unitInt = PyLong_AsLong(unit);
-    if (unitInt < 0)
-    {
-        PyErr_SetString(PyExc_ValueError, "Texture unit must be non-negative.");
-        return NULL;
-    }
-
-    glBindTextureUnit((GLuint)unitInt, self->id);
-
+    glBindTextureUnit(_textureUnit, self->id);
     Py_RETURN_NONE;
 }
 
-static PyObject *set_parameter(PyTexture *self, PyObject *args)
+static PyObject *PyTexture_set_parameter(PyTexture *self, PyObject *args)
 {
     if (self->target == GL_TEXTURE_BUFFER)
     {
-        PyErr_SetString(PyExc_RuntimeError, "Cannot set parameters of texture which is a buffer texture. (target == GL_TEXTURE_BUFFER).");
+        PyErr_SetString(PyExc_RuntimeError, "Cannot set parameters of texture which is a buffer texture.");
         return NULL;
     }
 
@@ -435,13 +442,26 @@ static PyObject *set_parameter(PyTexture *self, PyObject *args)
     Py_RETURN_NONE;
 }
 
-static PyObject *generate_mipmap(PyTexture *self, PyObject *Py_UNUSED(args))
+static PyObject *PyTexture_set_texture_buffer(PyTexture *self, PyBuffer *buffer)
 {
-    glGenerateTextureMipmap(self->id);
+    if (self->target != GL_TEXTURE_BUFFER)
+    {
+        PyErr_SetString(PyExc_RuntimeError, "Texture whose target is not GL_TEXTURE_BUFFER cannot be used as buffer texture.");
+        return NULL;
+    }
+
+    if (!PyObject_IsInstance((PyObject *)buffer, (PyObject *)&pyBufferType))
+    {
+        PyErr_Format(PyExc_TypeError, "Expected argument to be of type pygl.buffers.Buffer, got: %s.", Py_TYPE(buffer)->tp_name);
+        return NULL;
+    }
+
+    glTextureBuffer(self->id, self->internalFormat, buffer->id);
+
     Py_RETURN_NONE;
 }
 
-static PyObject *upload(PyTexture *self, PyObject *args)
+static PyObject *PyTexture_upload(PyTexture *self, PyObject *args)
 {
     PyObject *result = NULL;
 
@@ -451,9 +471,9 @@ static PyObject *upload(PyTexture *self, PyObject *args)
         return NULL;
     }
 
-    PyUploadInfo *info;
+    PyTextureUploadInfo *info;
     PyObject *bufferObject = NULL;
-    if (!PyArg_ParseTuple(args, "O!O", &pyUploadInfoType, &info, &bufferObject))
+    if (!PyArg_ParseTuple(args, "O!O", &pyTextureUploadInfoType, &info, &bufferObject))
         return NULL;
 
     Py_buffer buffer = {0};
@@ -467,24 +487,21 @@ static PyObject *upload(PyTexture *self, PyObject *args)
             goto end;
         }
 
-        if (!check_buffer_length(info, &buffer))
+        if (!CheckDataBufferLength(info, &buffer))
             goto end;
 
         dataPtr = (char *)buffer.buf + info->dataOffset;
     }
 
+    glPixelStorei(GL_UNPACK_ALIGNMENT, info->alignment);
+
     bool uploadSuccess = false;
     if (self->target == GL_TEXTURE_1D)
-        uploadSuccess = upload_texture_1d(self, info, dataPtr);
-    else if (self->target == GL_TEXTURE_1D_ARRAY ||
-             self->target == GL_TEXTURE_2D ||
-             self->target == GL_TEXTURE_2D_MULTISAMPLE)
-        uploadSuccess = upload_texture_2d(self, info, dataPtr);
-    else if (self->target == GL_TEXTURE_3D ||
-             self->target == GL_TEXTURE_2D_ARRAY ||
-             self->target == GL_TEXTURE_2D_MULTISAMPLE_ARRAY ||
-             self->target == GL_TEXTURE_CUBE_MAP)
-        uploadSuccess = upload_texture_3d(self, info, dataPtr);
+        uploadSuccess = UploadTexture1D(self, info, dataPtr);
+    else if (Requires2DUpload(self->target))
+        uploadSuccess = UploadTexture2D(self, info, dataPtr);
+    else if (Requires3DUpload(self->target))
+        uploadSuccess = UploadTexture3D(self, info, dataPtr);
     else
     {
         // TODO Implement support for array cubemap textures
@@ -507,47 +524,32 @@ end:
     return result;
 }
 
-static PyObject *set_texture_buffer(PyTexture *self, PyBuffer *buffer)
+static PyObject *PyTexture_is_cubemap_getter(PyTexture *self, void *closure)
 {
-    if (self->target != GL_TEXTURE_BUFFER)
-    {
-        PyErr_SetString(PyExc_RuntimeError, "Texture whose target is not GL_TEXTURE_BUFFER cannot be used as buffer texture.");
-        return NULL;
-    }
-
-    if (!PyObject_IsInstance((PyObject *)buffer, (PyObject *)&pyBufferType))
-    {
-        PyErr_Format(PyExc_TypeError, "Expected argument to be of type pygl.buffers.Buffer, got: %s.", Py_TYPE(buffer)->tp_name);
-        return NULL;
-    }
-
-    glTextureBuffer(self->id, self->internalFormat, buffer->id);
-
-    Py_RETURN_NONE;
-}
-
-static PyObject *get_is_cubemap(PyTexture *self, void *Py_UNUSED(closure))
-{
+    (void)closure;
     return PyBool_FromLong(self->target == GL_TEXTURE_CUBE_MAP);
 }
 
-static PyObject *get_is_array(PyTexture *self, void *Py_UNUSED(closure))
+static PyObject *PyTexture_is_array_getter(PyTexture *self, void *closure)
 {
+    (void)closure;
     return PyBool_FromLong(
         self->target == GL_TEXTURE_1D_ARRAY ||
         self->target == GL_TEXTURE_2D_ARRAY ||
         self->target == GL_TEXTURE_2D_MULTISAMPLE_ARRAY);
 }
 
-static PyObject *get_is_1d(PyTexture *self, void *Py_UNUSED(closure))
+static PyObject *PyTexture_is_1d_getter(PyTexture *self, void *closure)
 {
+    (void)closure;
     return PyBool_FromLong(
         self->target == GL_TEXTURE_1D ||
         self->target == GL_TEXTURE_1D_ARRAY);
 }
 
-static PyObject *get_is_2d(PyTexture *self, void *Py_UNUSED(closure))
+static PyObject *PyTexture_is_2d_getter(PyTexture *self, void *closure)
 {
+    (void)closure;
     return PyBool_FromLong(
         self->target == GL_TEXTURE_2D ||
         self->target == GL_TEXTURE_2D_ARRAY ||
@@ -555,20 +557,20 @@ static PyObject *get_is_2d(PyTexture *self, void *Py_UNUSED(closure))
         self->target == GL_TEXTURE_2D_MULTISAMPLE_ARRAY);
 }
 
-static PyObject *get_is_3d(PyTexture *self, void *Py_UNUSED(closure))
+static PyObject *PyTexture_is_3d_getter(PyTexture *self, void *closure)
 {
+    (void)closure;
     return PyBool_FromLong(self->target == GL_TEXTURE_3D);
 }
 
 PyTypeObject pyTextureType = {
     PyVarObject_HEAD_INIT(NULL, 0)
-        .tp_name = "pygl.textures.Texture",
-    .tp_flags = Py_TPFLAGS_DEFAULT,
+    .tp_name = "pygl.textures.Texture",
     .tp_basicsize = sizeof(PyTexture),
+    .tp_flags = Py_TPFLAGS_DEFAULT,
     .tp_new = PyType_GenericNew,
-    .tp_repr = (reprfunc)repr,
-    .tp_dealloc = (destructor)dealloc,
-    .tp_init = (initproc)init,
+    .tp_init = (initproc)PyTexture_init,
+    .tp_repr = (reprfunc)PyTexture_repr,
     .tp_members = (PyMemberDef[]){
         {"id", Py_T_UINT, offsetof(PyTexture, id), Py_READONLY, NULL},
         {"target", Py_T_UINT, offsetof(PyTexture, target), Py_READONLY, NULL},
@@ -580,42 +582,20 @@ PyTypeObject pyTextureType = {
         {0},
     },
     .tp_methods = (PyMethodDef[]){
-        {"delete", (PyCFunction) delete, METH_NOARGS, NULL},
-        {"bind", (PyCFunction)bind, METH_NOARGS, NULL},
-        {"bind_to_unit", (PyCFunction)bind_to_unit, METH_O, NULL},
-        {"upload", (PyCFunction)upload, METH_VARARGS, NULL},
-        {"set_parameter", (PyCFunction)set_parameter, METH_VARARGS, NULL},
-        {"generate_mipmap", (PyCFunction)generate_mipmap, METH_NOARGS, NULL},
-        {"set_texture_buffer", (PyCFunction)set_texture_buffer, METH_O, NULL},
+        {"delete", (PyCFunction)PyTexture_delete, METH_NOARGS, NULL},
+        {"bind", (PyCFunction)PyTexture_bind, METH_NOARGS, NULL},
+        {"bind_to_unit", (PyCFunction)PyTexture_bind_to_unit, METH_O, NULL},
+        {"set_parameter", (PyCFunction)PyTexture_set_parameter, METH_VARARGS, NULL},
+        {"set_texture_buffer", (PyCFunction)PyTexture_set_texture_buffer, METH_O, NULL},
+        {"upload", (PyCFunction)PyTexture_upload, METH_VARARGS, NULL},
         {0},
     },
     .tp_getset = (PyGetSetDef[]){
-        {"is_cubemap", (getter)get_is_cubemap, NULL, NULL, NULL},
-        {"is_array", (getter)get_is_array, NULL, NULL, NULL},
-        {"id_1d", (getter)get_is_1d, NULL, NULL, NULL},
-        {"is_2d", (getter)get_is_2d, NULL, NULL, NULL},
-        {"is_3d", (getter)get_is_3d, NULL, NULL, NULL},
+        {"is_cubemap", (getter)PyTexture_is_cubemap_getter, NULL, NULL, NULL},
+        {"is_array", (getter)PyTexture_is_array_getter, NULL, NULL, NULL},
+        {"id_1d", (getter)PyTexture_is_1d_getter, NULL, NULL, NULL},
+        {"is_2d", (getter)PyTexture_is_2d_getter, NULL, NULL, NULL},
+        {"is_3d", (getter)PyTexture_is_3d_getter, NULL, NULL, NULL},
         {0},
     },
 };
-
-GLuint texture_create_fb_attachment(PyAttachmentSpec *spec, GLsizei width, GLsizei height)
-{
-    GLuint id = 0;
-    GLenum target = spec->samples > 1 ? GL_TEXTURE_2D_MULTISAMPLE : GL_TEXTURE_2D;
-    glCreateTextures(target, 1, &id);
-
-    if (spec->samples > 1)
-        glTextureStorage2DMultisample(id, spec->samples, spec->format, width, height, GL_TRUE);
-    else
-        glTextureStorage2D(id, 1, spec->format, width, height);
-
-    glTextureParameteri(id, GL_TEXTURE_MIN_FILTER, spec->minFilter);
-    glTextureParameteri(id, GL_TEXTURE_MAG_FILTER, spec->magFilter);
-    glTextureParameteri(id, GL_TEXTURE_MAX_LEVEL, 1);
-    glTextureParameteri(id, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-    glTextureParameteri(id, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
-    glTextureParameteri(id, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-
-    return id;
-}

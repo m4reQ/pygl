@@ -1,10 +1,87 @@
 #include "framebuffer.h"
-#include "../debug.h"
-#include "../textures/texture.h"
-#include "../utility.h"
-#include <structmember.h>
 
-static const char *complete_status_to_string(GLenum status)
+static void DeleteFramebuffer(PyFramebuffer *framebuffer)
+{
+    for (size_t i = 0; i < framebuffer->nAttachments; i++)
+    {
+        Attachment *attachment = &framebuffer->attachments[i];
+        if (attachment->settings->isRenderbuffer)
+            glDeleteRenderbuffers(1, &attachment->id);
+        else
+            glDeleteTextures(1, &attachment->id);
+    }
+
+    glDeleteFramebuffers(1, &framebuffer->id);
+}
+
+static void InitializeFramebuffer(PyFramebuffer *framebuffer)
+{
+    glCreateFramebuffers(1, &framebuffer->id);
+
+    GLenum *drawBuffers = PyMem_Malloc(sizeof(GLenum) * framebuffer->nAttachments);
+    GLsizei nDrawBuffers = 0;
+
+    for (size_t i = 0; i < framebuffer->nAttachments; i++)
+    {
+        Attachment *attachment = &framebuffer->attachments[i];
+        PyFramebufferAttachment *settings = attachment->settings;
+
+        const bool isMultisampled = settings->samples > 1;
+        GLsizei width = framebuffer->width;
+        GLsizei height = framebuffer->height;
+        if (settings->width != 0 && settings->height != 0)
+        {
+            width = settings->width;
+            height = settings->height;
+        }
+
+        if (settings->isRenderbuffer)
+        {
+            glCreateRenderbuffers(1, &attachment->id);
+
+            if (isMultisampled)
+                glNamedRenderbufferStorageMultisample(attachment->id, settings->samples, settings->format, width, height);
+            else
+                glNamedRenderbufferStorage(attachment->id, settings->format, width, height);
+
+            glNamedFramebufferRenderbuffer(framebuffer->id, settings->attachment, GL_RENDERBUFFER, attachment->id);
+        }
+        else
+        {
+            const GLenum textureTarget = isMultisampled ? GL_TEXTURE_2D_MULTISAMPLE : GL_TEXTURE_2D;
+            glCreateTextures(textureTarget, 1, &attachment->id);
+
+            if (isMultisampled)
+                glTextureStorage2DMultisample(attachment->id, settings->samples, settings->format, width, height, GL_TRUE);
+            else
+                glTextureStorage2D(attachment->id, 1, settings->format, width, height);
+
+            glTextureParameteri(attachment->id, GL_TEXTURE_MIN_FILTER, settings->minFilter);
+            glTextureParameteri(attachment->id, GL_TEXTURE_MAG_FILTER, settings->magFilter);
+            glTextureParameteri(attachment->id, GL_TEXTURE_MAX_LEVEL, 1);
+            glTextureParameteri(attachment->id, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+            glTextureParameteri(attachment->id, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
+            glTextureParameteri(attachment->id, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+
+            glNamedFramebufferTexture(framebuffer->id, settings->attachment, attachment->id, 0);
+        }
+
+        if (settings->isWritable && !_PyFramebufferAttachment_IsDepthAttachment(settings))
+        {
+            drawBuffers[nDrawBuffers] = settings->attachment;
+            nDrawBuffers++;
+        }
+    }
+
+    if (nDrawBuffers == 0)
+        glNamedFramebufferDrawBuffer(framebuffer->id, GL_NONE);
+    else
+        glNamedFramebufferDrawBuffers(framebuffer->id, nDrawBuffers, drawBuffers);
+
+    PyMem_Free(drawBuffers);
+}
+
+static const char *FramebufferStatusToString(GLenum status)
 {
     switch (status)
     {
@@ -24,288 +101,306 @@ static const char *complete_status_to_string(GLenum status)
         return "GL_FRAMEBUFFER_INCOMPLETE_MULTISAMPLE";
     case GL_FRAMEBUFFER_INCOMPLETE_LAYER_TARGETS:
         return "GL_FRAMEBUFFER_INCOMPLETE_LAYER_TARGETS";
+    default:
+        return "UNKNOWN";
     }
-
-    assert(0 && "Unreachable at framebuffer::complete_status_to_string");
-    return NULL;
 }
 
-static bool check_framebuffer_complete(GLuint fb)
+static bool ValidateFramebuffer(PyFramebuffer *framebuffer)
 {
-    GLenum completeStatus = glCheckNamedFramebufferStatus(fb, GL_FRAMEBUFFER);
-    if (completeStatus != GL_FRAMEBUFFER_COMPLETE)
+    GLenum status = glCheckNamedFramebufferStatus(framebuffer->id, GL_FRAMEBUFFER);
+    if (status != GL_FRAMEBUFFER_COMPLETE)
     {
-        PyErr_Format(PyExc_RuntimeError, "Couldn't create framebuffer: %s.", complete_status_to_string(completeStatus));
+        PyErr_Format(PyExc_RuntimeError, "Failed to create framebuffer (id: %d): %s.", framebuffer->id, FramebufferStatusToString(status));
         return false;
     }
 
     return true;
 }
 
-// This function never fails after the framebuffer have beed initialized
-static bool recreate_attachments(PyFramebuffer *self, bool isResizing)
+static Attachment *FindAttachment(PyFramebuffer *framebuffer, GLenum attachmentPoint)
 {
-    size_t nAttachments = PyList_GET_SIZE(self->specs);
-    debug_log(LOG_LVL_INFO, "Creating %zu framebuffer attachments...", nAttachments);
-
-    if (!isResizing)
-        self->attachments = PyMem_Malloc(sizeof(Attachment) * nAttachments);
-
-    for (size_t i = 0; i < nAttachments; i++)
+    for (size_t i = 0; i < framebuffer->nAttachments; i++)
     {
-        PyAttachmentSpec *spec = (PyAttachmentSpec *)PyList_GET_ITEM(self->specs, i);
-        THROW_IF(
-            !is_attachment_spec((PyObject *)spec),
-            PyExc_TypeError,
-            "All objects in specs have to be either of FramebufferAttachment or TextureAttachment types.",
-            false);
-
-        debug_log(LOG_LVL_INFO, "Processing attachment spec %zu, of type %s...", i, Py_TYPE(spec)->tp_name);
-
-        if (!spec->isResizable && isResizing)
-        {
-            // don't bother recreating attachment if it's not meant to be resized
-            debug_log(LOG_LVL_INFO, "  Skipping attachment creation because the framebuffer is resizing, but attachment is not resizable.");
-            continue;
-        }
-
-        // if we are not resizing or attachment is not resizable use framebuffer'e dimensions
-        GLsizei width = spec->isResizable ? self->width : spec->width;
-        GLsizei height = spec->isResizable ? self->height : spec->height;
-
-        debug_log(LOG_LVL_INFO, "  Attachment info -> size: %dx%d, format: 0x%X, attachment point: 0x%X.", width, height, spec->format, spec->attachment);
-
-        GLuint id = 0;
-        if (spec->isRenderbuffer)
-        {
-            glCreateRenderbuffers(1, &id);
-            debug_log(LOG_LVL_INFO, "  Generated attachment renderbuffer with id %d.", id);
-
-            if (spec->samples > 1)
-                glNamedRenderbufferStorageMultisample(id, spec->samples, spec->format, width, height);
-            else
-                glNamedRenderbufferStorage(id, spec->format, width, height);
-
-            glNamedFramebufferRenderbuffer(self->id, spec->attachment, GL_RENDERBUFFER, id);
-            debug_log(LOG_LVL_INFO, "  Attached renderbuffer attachment to attachment point 0x%X.", spec->attachment);
-        }
-        else
-        {
-            id = texture_create_fb_attachment(spec, width, height);
-            debug_log(LOG_LVL_INFO, "  Generated attachment texture with id %d.", id);
-
-            glNamedFramebufferTexture(self->id, spec->attachment, id, 0);
-            debug_log(LOG_LVL_INFO, "  Attached texture attachment to attachment point 0x%X.", spec->attachment);
-        }
-
-        self->attachments[i].id = id;
-        self->attachments[i].isRenderbuffer = spec->isRenderbuffer;
-        self->attachments[i].target = spec->attachment;
+        Attachment *attachment = &framebuffer->attachments[i];
+        if (attachment->settings->attachment == attachmentPoint)
+            return attachment;
     }
 
-    debug_log(LOG_LVL_INFO, "Created %zu framebuffer attachments.", nAttachments);
-
-    return true;
+    PyErr_Format(PyExc_RuntimeError, "No attachment bound to attachment point %d.", attachmentPoint);
+    return NULL;
 }
 
-static void delete_framebuffer_contents(PyFramebuffer *self)
+static Py_ssize_t GetGLTypeSize(GLenum type)
 {
-    glDeleteFramebuffers(1, &self->id);
-
-    // check for when errors happen during initialization
-    if (self->attachments == NULL)
-        return;
-
-    size_t nAttachments = PyList_GET_SIZE(self->specs);
-    for (size_t i = 0; i < nAttachments; i++)
+    switch (type)
     {
-        Attachment attachment = self->attachments[i];
-        if (attachment.isRenderbuffer)
-            glDeleteRenderbuffers(1, &attachment.id);
-        else
-            glDeleteTextures(1, &attachment.id);
+    case GL_BYTE:
+        return sizeof(GLbyte);
+    case GL_UNSIGNED_BYTE:
+        return sizeof(GLubyte);
+    case GL_SHORT:
+        return sizeof(GLshort);
+    case GL_UNSIGNED_SHORT:
+        return sizeof(GLushort);
+    case GL_INT:
+        return sizeof(GLint);
+    case GL_UNSIGNED_INT:
+        return sizeof(GLuint);
+    case GL_FIXED:
+        return sizeof(GLfixed);
+    case GL_HALF_FLOAT:
+        return sizeof(GLhalf);
+    case GL_FLOAT:
+        return sizeof(GLfloat);
+    case GL_DOUBLE:
+        return sizeof(GLdouble);
+    default:
+        return 0;
     }
 }
 
-static PyObject *bind(PyFramebuffer *self, PyObject *Py_UNUSED(args))
+static int PyFramebuffer_init(PyFramebuffer *self, PyObject *args, PyObject *kwargs)
 {
+    (void)kwargs;
+
+    PyObject *attachments;
+    if (!PyArg_ParseTuple(args, "O!ii", &PyList_Type, &attachments, &self->width, &self->height))
+        return -1;
+
+    self->nAttachments = (size_t)PyList_GET_SIZE(attachments);
+    self->attachments = PyMem_Calloc(self->nAttachments, sizeof(Attachment));
+
+    for (size_t i = 0; i < self->nAttachments; i++)
+    {
+        PyObject *attachment = PyList_GET_ITEM(attachments, i);
+        if (!PyObject_IsInstance(attachment, (PyObject *)&pyFramebufferAttachmentType))
+        {
+            PyErr_Format(PyExc_TypeError, "Expected attachments[%d] to be of type %s, got: %s.", i, pyFramebufferAttachmentType.tp_name, Py_TYPE(attachment)->tp_name);
+            return -1;
+        }
+
+        self->attachments[i].settings = (PyFramebufferAttachment *)Py_NewRef(attachment);
+    }
+
+    InitializeFramebuffer(self);
+    if (!ValidateFramebuffer(self))
+        return -1;
+
+    return 0;
+}
+
+static void PyFramebuffer_dealloc(PyFramebuffer *self)
+{
+    if (self->attachments != NULL)
+    {
+        for (size_t i = 0; i < self->nAttachments; i++)
+        {
+            Py_XDECREF(self->attachments[i].settings);
+        }
+
+        PyMem_Free(self->attachments);
+    }
+
+    Py_TYPE(self)->tp_free(self);
+}
+
+static PyObject *PyFramebuffer_size_getter(PyFramebuffer *self, void *closure)
+{
+    (void)closure;
+    return PyTuple_Pack(2, PyLong_FromLong(self->width), PyLong_FromLong(self->height));
+}
+
+static PyObject *PyFramebuffer_delete(PyFramebuffer *self, PyObject *args)
+{
+    (void)args;
+    DeleteFramebuffer(self);
+    Py_RETURN_NONE;
+}
+
+static PyObject *PyFramebuffer_bind(PyFramebuffer *self, PyObject *args)
+{
+    (void)args;
     glBindFramebuffer(GL_FRAMEBUFFER, self->id);
     Py_RETURN_NONE;
 }
 
-static PyObject *unbind(PyFramebuffer *Py_UNUSED(self), PyObject *Py_UNUSED(args))
+static PyObject *PyFramebuffer_unbind(PyFramebuffer *self, PyObject *args)
 {
+    (void)self;
+    (void)args;
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
     Py_RETURN_NONE;
 }
 
-static PyObject *delete(PyFramebuffer *self, PyObject *Py_UNUSED(args))
+static PyObject *PyFramebuffer_resize(PyFramebuffer *self, PyObject *const *args, Py_ssize_t nArgs)
 {
-    delete_framebuffer_contents(self);
-
-    PyMem_Free(self->attachments);
-    self->attachments = NULL;
-
-    Py_RETURN_NONE;
-}
-
-static PyObject *resize(PyFramebuffer *self, PyObject *args)
-{
-    GLsizei width = 0, height = 0;
-    if (!PyArg_ParseTuple(args, "ii", &width, &height))
+    GLsizei width, height;
+    if (!_PyArg_ParseStack(args, nArgs, "ii", &width, &height))
         return NULL;
 
-    if (width < 0 || height < 0 || (width == self->width && height == self->height))
-        Py_RETURN_NONE; // do not try to create 0-sized framebuffers and skip when the size given is the same as current
+    if (width == 0 || height == 0 || (width == self->width && height == self->height))
+        Py_RETURN_NONE;
 
     self->width = width;
     self->height = height;
 
-    // make sure framebuffer is not bound cause it might break on some drivers
-    glBindFramebuffer(GL_FRAMEBUFFER, 0);
-
-    delete_framebuffer_contents(self);
-    glCreateFramebuffers(1, &self->id);
-    recreate_attachments(self, true);
+    DeleteFramebuffer(self);
+    InitializeFramebuffer(self);
 
     Py_RETURN_NONE;
 }
 
-static PyObject *get_attachment_id(PyFramebuffer *self, PyObject *attachment)
+static PyObject *PyFramebuffer_get_attachment(PyFramebuffer *self, PyObject *pyAttachmentPoint)
 {
-    THROW_IF(
-        !PyLong_Check(attachment),
-        PyExc_TypeError,
-        "attachment has to be of type int.",
-        NULL);
-
-    GLenum target;
-    if (!convert_attachment(attachment, &target))
+    const GLenum attachmentPoint = _PyFramebufferAttachment_ObjectToAttachmentPoint(pyAttachmentPoint);
+    if (attachmentPoint == -1)
         return NULL;
 
-    size_t nAttachments = PyList_GET_SIZE(self->specs);
-    for (size_t i = 0; i < nAttachments; i++)
-    {
-        Attachment a = self->attachments[i];
-        if (a.target == target)
-            return PyLong_FromUnsignedLong(a.id);
-    }
+    const Attachment *attachment = FindAttachment(self, attachmentPoint);
+    if (attachment == NULL)
+        return NULL;
 
-    PyErr_SetString(PyExc_RuntimeError, "Couldn't find buffer attachment.");
-    return NULL;
+    return Py_NewRef(attachment->settings);
 }
 
-static PyObject *size_getter(PyFramebuffer *self, void *Py_UNUSED(closure))
+static PyObject *PyFramebuffer_get_attachment_id(PyFramebuffer *self, PyObject *pyAttachmentPoint)
 {
-    return PyTuple_Pack(2, PyLong_FromLong(self->width), PyLong_FromLong(self->height));
+    const GLenum attachmentPoint = _PyFramebufferAttachment_ObjectToAttachmentPoint(pyAttachmentPoint);
+    if (attachmentPoint == -1)
+        return NULL;
+
+    const Attachment *attachment = FindAttachment(self, attachmentPoint);
+    if (attachment == NULL)
+        return NULL;
+
+    return PyLong_FromUnsignedLong(attachment->id);
 }
 
-static int init(PyFramebuffer *self, PyObject *args, PyObject *Py_UNUSED(kwargs))
+static PyObject *PyFramebuffer_clear_color_attachment(PyFramebuffer *self, PyObject *const *args, Py_ssize_t nArgs)
 {
-    if (!PyArg_ParseTuple(args, "O!ii", &PyList_Type, &self->specs, &self->width, &self->height))
-        return -1;
+    PyObject *result = NULL;
 
-    Py_INCREF(self->specs);
+    Py_buffer clearValueBuffer = {0};
+    GLint drawBuffer;
+    GLenum clearValueType;
+    if (!_PyArg_ParseStack(args, nArgs, "y*iI", &clearValueBuffer, &drawBuffer, &clearValueType))
+        goto end;
 
-    THROW_IF(
-        self->width < 0 || self->height < 0,
-        PyExc_ValueError,
-        "Framebuffer width and height have to be greater than 0.",
-        -1);
-
-    // catch early to prevent GL_FRAMEBUFFER_INCOMPLETE_MISSING_ATTACHMENT later
-    THROW_IF(
-        PyList_GET_SIZE(self->specs) == 0,
-        PyExc_ValueError,
-        "At least one framebuffer attachment must be specified.",
-        -1);
-
-    glCreateFramebuffers(1, &self->id);
-    debug_log(LOG_LVL_INFO, "Generated framebuffer id: %d.", self->id);
-
-    if (!recreate_attachments(self, false))
-        return -1;
-
-    debug_log(LOG_LVL_INFO, "Settings up framebuffer read/draw buffers...");
-    // Apply read/write specifications
-    GLenum *drawBuffers = PyMem_Malloc(sizeof(GLenum) * PyList_GET_SIZE(self->specs));
-    size_t drawBuffersCount = 0;
-    for (size_t i = 0; i < PyList_GET_SIZE(self->specs); i++)
+    if (!PyBuffer_IsContiguous(&clearValueBuffer, 'C'))
     {
-        debug_log(LOG_LVL_INFO, "Processing attachment with index %zu...", i);
-
-        PyAttachmentSpec *spec = (PyAttachmentSpec *)PyList_GET_ITEM(self->specs, i);
-        if (is_depth_attachment(spec->attachment))
-        {
-            debug_log(LOG_LVL_INFO, "  Skipping attachment %zu, because it has depth/stencil format. Attachment format: 0x%x.", i, spec->format);
-            continue;
-        }
-
-        if (spec->isWritable)
-        {
-            debug_log(LOG_LVL_INFO, "  Attachment %zu is writable. Adding draw buffer for attachment point 0x%X.", i, spec->attachment);
-
-            drawBuffers[drawBuffersCount] = spec->attachment;
-            drawBuffersCount++;
-        }
+        PyErr_SetString(PyExc_ValueError, "Clear value buffer must be C-contiguous.");
+        goto end;
     }
 
-    if (drawBuffersCount == 0)
+    if (clearValueBuffer.shape[0] != 4)
     {
-        debug_log(LOG_LVL_INFO, "No writable attachments specified. Using GL_NONE as draw buffer.");
-        glNamedFramebufferDrawBuffer(self->id, GL_NONE);
-    }
-    else
-    {
-        debug_log(LOG_LVL_INFO, "Using %zu draw buffers for the framebuffer.", drawBuffersCount);
-        glNamedFramebufferDrawBuffers(self->id, drawBuffersCount, drawBuffers);
+        PyErr_Format(PyExc_ValueError, "Clear value buffer must be 4-items long, got only %d items.", clearValueBuffer.shape[0]);
+        goto end;
     }
 
-    PyMem_Free(drawBuffers);
+    if (clearValueBuffer.itemsize != GetGLTypeSize(clearValueType))
+    {
+        PyErr_Format(PyExc_ValueError, "Clear value buffer's item size do not match requested OpenGL type size. Stopping to prevent access violation.");
+        goto end;
+    }
 
-    return check_framebuffer_complete(self->id) ? 0 : -1;
+    switch (clearValueType)
+    {
+    case GL_FLOAT:
+    case GL_FIXED:
+    case GL_DOUBLE:
+        glClearNamedFramebufferfv(self->id, GL_COLOR, drawBuffer, clearValueBuffer.buf);
+        break;
+    case GL_BYTE:
+    case GL_SHORT:
+    case GL_INT:
+        glClearNamedFramebufferiv(self->id, GL_COLOR, drawBuffer, clearValueBuffer.buf);
+        break;
+    case GL_UNSIGNED_BYTE:
+    case GL_UNSIGNED_SHORT:
+    case GL_UNSIGNED_INT:
+        glClearNamedFramebufferuiv(self->id, GL_COLOR, drawBuffer, clearValueBuffer.buf);
+        break;
+    default:
+        PyErr_Format(PyExc_ValueError, "Unsupported OpenGL type for buffer clear value: %d.", clearValueType);
+        goto end;
+    }
+
+    result = Py_NewRef(Py_None);
+
+end:
+    if (clearValueBuffer.buf != NULL)
+        PyBuffer_Release(&clearValueBuffer);
+
+    return result;
 }
 
-static void dealloc(PyFramebuffer *self)
+static PyObject *PyFramebuffer_clear_depth_attachment(PyFramebuffer *self, PyObject *depthValue)
 {
-    delete_framebuffer_contents(self);
+    const GLfloat depth = (float)PyFloat_AsDouble(depthValue);
+    if (PyErr_Occurred())
+        return NULL;
 
-    if (self->attachments)
-        PyMem_Free(self->attachments);
+    glClearNamedFramebufferfv(self->id, GL_DEPTH, 0, &depth);
 
-    Py_CLEAR(self->specs);
-    Py_TYPE(self)->tp_free(self);
+    Py_RETURN_NONE;
+}
+
+static PyObject *PyFramebuffer_clear_stencil_attachment(PyFramebuffer *self, PyObject *stencilValue)
+{
+    const GLint stencil = PyLong_AsLong(stencilValue);
+    if (PyErr_Occurred())
+        return NULL;
+
+    glClearNamedFramebufferiv(self->id, GL_STENCIL, 0, &stencil);
+
+    Py_RETURN_NONE;
+}
+
+static PyObject *PyFramebuffer_clear_depth_stencil_attachment(PyFramebuffer *self, PyObject *const *args, Py_ssize_t nArgs)
+{
+    GLfloat depth;
+    GLint stencil;
+    if (!_PyArg_ParseStack(args, nArgs, "fi", &depth, &stencil))
+        return NULL;
+
+    glClearNamedFramebufferfi(self->id, GL_DEPTH_STENCIL, 0, depth, stencil);
+
+    Py_RETURN_NONE;
 }
 
 PyTypeObject pyFramebufferType = {
     PyVarObject_HEAD_INIT(NULL, 0)
-        .tp_flags = Py_TPFLAGS_DEFAULT,
-    .tp_name = "pygl.framebuffer.Framebuffer",
+        .tp_name = "pygl.framebuffer.Framebuffer",
     .tp_basicsize = sizeof(PyFramebuffer),
+    .tp_flags = Py_TPFLAGS_DEFAULT,
     .tp_new = PyType_GenericNew,
-    .tp_init = (initproc)init,
-    .tp_dealloc = (destructor)dealloc,
+    .tp_init = (initproc)PyFramebuffer_init,
+    .tp_dealloc = (destructor)PyFramebuffer_dealloc,
     .tp_members = (PyMemberDef[]){
-        {"id", T_UINT, offsetof(PyFramebuffer, id), READONLY, NULL},
-        {"width", T_INT, offsetof(PyFramebuffer, width), READONLY, NULL},
-        {"height", T_INT, offsetof(PyFramebuffer, height), READONLY, NULL},
-        {"specs", T_OBJECT_EX, offsetof(PyFramebuffer, specs), READONLY, NULL},
+        {"id", Py_T_UINT, offsetof(PyFramebuffer, id), Py_READONLY, NULL},
+        {"width", Py_T_INT, offsetof(PyFramebuffer, width), Py_READONLY, NULL},
+        {"height", Py_T_INT, offsetof(PyFramebuffer, height), Py_READONLY, NULL},
+        {"attachments_count", Py_T_PYSSIZET, offsetof(PyFramebuffer, nAttachments), Py_READONLY, NULL},
         {0},
     },
     .tp_methods = (PyMethodDef[]){
-        {"bind", (PyCFunction)bind, METH_NOARGS, NULL},
-        {"unbind", (PyCFunction)unbind, METH_NOARGS, NULL},
-        {"delete", (PyCFunction) delete, METH_NOARGS, NULL},
-        {"resize", (PyCFunction)resize, METH_VARARGS, NULL},
-        {"get_attachment_id", (PyCFunction)get_attachment_id, METH_O, NULL},
-        // TODO add missing framebuffer functions
-        // {"clear", (PyCFunction)clear, METH_VARARGS, NULL},
-        // {"read_attachment", (PyCFunction)read_attachment, METH_VARARGS, NULL},
-        // {"read_pixel", (PyCFunction)read_pixel, METH_VARARGS, NULL},
+        {"delete", (PyCFunction)PyFramebuffer_delete, METH_NOARGS, NULL},
+        {"bind", (PyCFunction)PyFramebuffer_bind, METH_NOARGS, NULL},
+        {"unbind", (PyCFunction)PyFramebuffer_unbind, METH_NOARGS, NULL},
+        {"resize", (PyCFunction)PyFramebuffer_resize, METH_FASTCALL, NULL},
+        {"get_attachment", (PyCFunction)PyFramebuffer_get_attachment, METH_O, NULL},
+        {"get_attachment_id", (PyCFunction)PyFramebuffer_get_attachment_id, METH_O, NULL},
+        {"clear_color_attachment", (PyCFunction)PyFramebuffer_clear_color_attachment, METH_FASTCALL, NULL},
+        {"clear_depth_attachment", (PyCFunction)PyFramebuffer_clear_depth_attachment, METH_O, NULL},
+        {"clear_stencil_attachment", (PyCFunction)PyFramebuffer_clear_stencil_attachment, METH_O, NULL},
+        {"clear_depth_stencil_attachment", (PyCFunction)PyFramebuffer_clear_depth_stencil_attachment, METH_FASTCALL, NULL},
+        // TODO Implement framebuffer attachment reading
         {0},
     },
     .tp_getset = (PyGetSetDef[]){
-        {"size", (getter)size_getter, NULL, NULL, NULL},
+        {"size", (getter)PyFramebuffer_size_getter, NULL, NULL, NULL},
         {0},
     },
 };

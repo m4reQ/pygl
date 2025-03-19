@@ -1,5 +1,3 @@
-#include "renderbufferAttachment.h"
-#include "textureAttachment.h"
 #include "framebuffer.h"
 #include "../module.h"
 
@@ -59,16 +57,18 @@ static EnumDef attachmentFormatEnum = {
         {"DEPTH24_STENCIL8", GL_DEPTH24_STENCIL8},
         {"DEPTH32F_STENCIL8", GL_DEPTH32F_STENCIL8},
         {"STENCIL_INDEX8", GL_STENCIL_INDEX8},
-        {0}},
+        {0},
+    },
 };
 
-static EnumDef attachmentEnum = {
-    .enumName = "Attachment",
+static EnumDef attachmentPointEnum = {
+    .enumName = "AttachmentPoint",
     .values = (EnumValue[]){
         {"DEPTH_ATTACHMENT", GL_DEPTH_ATTACHMENT},
         {"STENCIL_ATTACHMENT", GL_STENCIL_ATTACHMENT},
         {"DEPTH_STENCIL_ATTACHMENT", GL_DEPTH_STENCIL_ATTACHMENT},
-        {0}},
+        {0},
+    },
 };
 
 static ModuleInfo modInfo = {
@@ -76,8 +76,8 @@ static ModuleInfo modInfo = {
         PyModuleDef_HEAD_INIT,
         .m_name = "pygl.framebuffer",
         .m_size = -1},
-    .enums = (EnumDef *[]){&attachmentEnum, &attachmentFormatEnum, NULL},
-    .types = (PyTypeObject *[]){&pyTextureAttachmentType, &pyRenderbufferAttachmentType, &pyFramebufferType, NULL},
+    .enums = (EnumDef *[]){&attachmentPointEnum, &attachmentFormatEnum, NULL},
+    .types = (PyTypeObject *[]){&pyFramebufferType, &pyFramebufferAttachmentType, NULL},
 };
 
 PyMODINIT_FUNC PyInit_framebuffer()

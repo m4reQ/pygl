@@ -1,99 +1,112 @@
 import enum
+import typing as t
+
+class GLType(enum.IntEnum):
+    BYTE = t.cast(int, ...)
+    UNSIGNED_BYTE = t.cast(int, ...)
+    SHORT = t.cast(int, ...)
+    UNSIGNED_SHORT = t.cast(int, ...)
+    INT = t.cast(int, ...)
+    UNSIGNED_INT = t.cast(int, ...)
+    FIXED = t.cast(int, ...)
+    HALF_FLOAT = t.cast(int, ...)
+    FLOAT = t.cast(int, ...)
+    DOUBLE = t.cast(int, ...)
 
 class BlendEquation(enum.IntEnum):
-    FUNC_ADD: int
-    FUNC_SUBTRACT: int
-    FUNC_REVERSE_SUBTRACT: int
-    MIN: int
-    MAX: int
+    FUNC_ADD = t.cast(int, ...)
+    FUNC_SUBTRACT = t.cast(int, ...)
+    FUNC_REVERSE_SUBTRACT = t.cast(int, ...)
+    MIN = t.cast(int, ...)
+    MAX = t.cast(int, ...)
 
 class EnableCap(enum.IntEnum):
-    BLEND: int
-    CLIP_DISTANCE0: int
-    CLIP_DISTANCE1: int
-    CLIP_DISTANCE2: int
-    CLIP_DISTANCE3: int
-    CLIP_DISTANCE4: int
-    CLIP_DISTANCE5: int
-    CLIP_DISTANCE6: int
-    CLIP_DISTANCE7: int
-    COLOR_LOGIC_OP: int
-    CULL_FACE: int
-    DEBUG_OUTPUT: int
-    DEBUG_OUTPUT_SYNCHRONOUS: int
-    DEPTH_CLAMP: int
-    DEPTH_TEST: int
-    DITHER: int
-    FRAMEBUFFER_SRGB: int
-    LINE_SMOOTH: int
-    MULTISAMPLE: int
-    POLYGON_OFFSET_FILL: int
-    POLYGON_OFFSET_LINE: int
-    POLYGON_OFFSET_POINT: int
-    POLYGON_SMOOTH: int
-    PRIMITIVE_RESTART: int
-    PRIMITIVE_RESTART_FIXED_INDEX: int
-    RASTERIZER_DISCARD: int
-    SAMPLE_ALPHA_TO_COVERAGE: int
-    SAMPLE_ALPHA_TO_ONE: int
-    SAMPLE_COVERAGE: int
-    SAMPLE_SHADING: int
-    SAMPLE_MASK: int
-    SCISSOR_TEST: int
-    STENCIL_TEST: int
-    TEXTURE_CUBE_MAP_SEAMLESS: int
-    PROGRAM_POINT_SIZE: int
+    BLEND = t.cast(int, ...)
+    CLIP_DISTANCE0 = t.cast(int, ...)
+    CLIP_DISTANCE1 = t.cast(int, ...)
+    CLIP_DISTANCE2 = t.cast(int, ...)
+    CLIP_DISTANCE3 = t.cast(int, ...)
+    CLIP_DISTANCE4 = t.cast(int, ...)
+    CLIP_DISTANCE5 = t.cast(int, ...)
+    CLIP_DISTANCE6 = t.cast(int, ...)
+    CLIP_DISTANCE7 = t.cast(int, ...)
+    COLOR_LOGIC_OP = t.cast(int, ...)
+    CULL_FACE = t.cast(int, ...)
+    DEBUG_OUTPUT = t.cast(int, ...)
+    DEBUG_OUTPUT_SYNCHRONOUS = t.cast(int, ...)
+    DEPTH_CLAMP = t.cast(int, ...)
+    DEPTH_TEST = t.cast(int, ...)
+    DITHER = t.cast(int, ...)
+    FRAMEBUFFER_SRGB = t.cast(int, ...)
+    LINE_SMOOTH = t.cast(int, ...)
+    MULTISAMPLE = t.cast(int, ...)
+    POLYGON_OFFSET_FILL = t.cast(int, ...)
+    POLYGON_OFFSET_LINE = t.cast(int, ...)
+    POLYGON_OFFSET_POINT = t.cast(int, ...)
+    POLYGON_SMOOTH = t.cast(int, ...)
+    PRIMITIVE_RESTART = t.cast(int, ...)
+    PRIMITIVE_RESTART_FIXED_INDEX = t.cast(int, ...)
+    RASTERIZER_DISCARD = t.cast(int, ...)
+    SAMPLE_ALPHA_TO_COVERAGE = t.cast(int, ...)
+    SAMPLE_ALPHA_TO_ONE = t.cast(int, ...)
+    SAMPLE_COVERAGE = t.cast(int, ...)
+    SAMPLE_SHADING = t.cast(int, ...)
+    SAMPLE_MASK = t.cast(int, ...)
+    SCISSOR_TEST = t.cast(int, ...)
+    STENCIL_TEST = t.cast(int, ...)
+    TEXTURE_CUBE_MAP_SEAMLESS = t.cast(int, ...)
+    PROGRAM_POINT_SIZE = t.cast(int, ...)
 
 class HintTarget(enum.IntEnum):
-    FRAGMENT_SHADER_DERIVATIVE_HINT: int
-    LINE_SMOOTH_HINT: int
-    POLYGON_SMOOTH_HINT: int
-    TEXTURE_COMPRESSION_HINT: int
+    FRAGMENT_SHADER_DERIVATIVE_HINT = t.cast(int, ...)
+    LINE_SMOOTH_HINT = t.cast(int, ...)
+    POLYGON_SMOOTH_HINT = t.cast(int, ...)
+    TEXTURE_COMPRESSION_HINT = t.cast(int, ...)
 
 class HintValue(enum.IntEnum):
-    NICEST: int
-    FASTEST: int
-    DONT_CARE: int
+    NICEST = t.cast(int, ...)
+    FASTEST = t.cast(int, ...)
+    DONT_CARE = t.cast(int, ...)
 
 class FrontFace(enum.IntEnum):
-    CW: int
-    CCW: int
+    CW = t.cast(int, ...)
+    CCW = t.cast(int, ...)
 
 class CullFace(enum.IntEnum):
-    FRONT: int
-    BACK: int
-    FRONT_AND_BACK: int
+    FRONT = t.cast(int, ...)
+    BACK = t.cast(int, ...)
+    FRONT_AND_BACK = t.cast(int, ...)
 
 class DepthFunc(enum.IntEnum):
-    NEVER: int
-    LESS: int
-    EQUAL: int
-    LEQUAL: int
-    GREATER: int
-    NOTEQUAL: int
-    GEQUAL: int
-    ALWAYS: int
+    NEVER = t.cast(int, ...)
+    LESS = t.cast(int, ...)
+    EQUAL = t.cast(int, ...)
+    LEQUAL = t.cast(int, ...)
+    GREATER = t.cast(int, ...)
+    NOTEQUAL = t.cast(int, ...)
+    GEQUAL = t.cast(int, ...)
+    ALWAYS = t.cast(int, ...)
 
 class PolygonMode(enum.IntEnum):
-    FILL: int
-    POINT: int
-    LINE: int
+    FILL = t.cast(int, ...)
+    POINT = t.cast(int, ...)
+    LINE = t.cast(int, ...)
 
 class BlendFactor(enum.IntEnum):
-    ZERO: int
-    ONE: int
-    SRC_COLOR: int
-    ONE_MINUS_SRC_COLOR: int
-    DST_COLOR: int
-    ONE_MINUS_DST_COLOR: int
-    SRC_ALPHA: int
-    ONE_MINUS_SRC_ALPHA: int
-    DST_ALPHA: int
-    ONE_MINUS_DST_ALPHA: int
-    CONSTANT_COLOR: int
-    ONE_MINUS_CONSTANT_COLOR: int
-    CONSTANT_ALPHA: int
-    ONE_MINUS_CONSTANT_ALPHA: int
+    ZERO = t.cast(int, ...)
+    ONE = t.cast(int, ...)
+    SRC_COLOR = t.cast(int, ...)
+    ONE_MINUS_SRC_COLOR = t.cast(int, ...)
+    DST_COLOR = t.cast(int, ...)
+    ONE_MINUS_DST_COLOR = t.cast(int, ...)
+    SRC_ALPHA = t.cast(int, ...)
+    ONE_MINUS_SRC_ALPHA = t.cast(int, ...)
+    DST_ALPHA = t.cast(int, ...)
+    ONE_MINUS_DST_ALPHA = t.cast(int, ...)
+    CONSTANT_COLOR = t.cast(int, ...)
+    ONE_MINUS_CONSTANT_COLOR = t.cast(int, ...)
+    CONSTANT_ALPHA = t.cast(int, ...)
+    ONE_MINUS_CONSTANT_ALPHA = t.cast(int, ...)
 
 class StringName:
     SHADING_LANGUAGE_VERSION: int

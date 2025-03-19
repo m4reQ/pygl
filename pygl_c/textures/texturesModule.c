@@ -1,5 +1,3 @@
-#include "textureSpec.h"
-#include "uploadInfo.h"
 #include "texture.h"
 #include "../module.h"
 #include "../utility.h"
@@ -94,6 +92,19 @@ static EnumDef magFilterEnum = {
     .values = (EnumValue[]){
         {"NEAREST", GL_NEAREST},
         {"LINEAR", GL_LINEAR},
+        {0},
+    },
+};
+
+static EnumDef textureSwizzleEnum = {
+    .enumName = "TextureSwizzle",
+    .values = (EnumValue[]){
+        {"RED", GL_RED},
+        {"GREEN", GL_GREEN},
+        {"BLUE", GL_BLUE},
+        {"ALPHA", GL_ALPHA},
+        {"ONE", GL_ONE},
+        {"ZERO", GL_ZERO},
         {0},
     },
 };
@@ -311,11 +322,12 @@ static ModuleInfo modInfo = {
         &pixelTypeEnum,
         &compressedInternalFormatEnum,
         &textureTargetEnum,
+        &textureSwizzleEnum,
         NULL,
     },
     .types = (PyTypeObject *[]){
         &pyTextureSpecType,
-        &pyUploadInfoType,
+        &pyTextureUploadInfoType,
         &pyTextureType,
         NULL,
     },

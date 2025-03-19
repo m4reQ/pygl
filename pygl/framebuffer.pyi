@@ -2,96 +2,70 @@ import enum
 import typing as t
 from collections.abc import Buffer as TSupportsBuffer
 
+from .commands import GLType
 from .textures import MagFilter, MinFilter
 
 class AttachmentFormat(enum.IntEnum):
-    RGBA8: int
-    RGB8: int
-    RG8: int
-    R8: int
-    RGBA16: int
-    RGB16: int
-    RG16: int
-    R16: int
-    RGBA16F: int
-    RGB16F: int
-    RG16F: int
-    R16F: int
-    RGBA32F: int
-    RGB32F: int
-    RG32F: int
-    R32F: int
-    RGBA8I: int
-    RGB8I: int
-    RG8I: int
-    R8I: int
-    RGBA16I: int
-    RGB16I: int
-    RG16I: int
-    R16I: int
-    RGBA32I: int
-    RGB32I: int
-    RG32I: int
-    R32I: int
-    RGBA8UI: int
-    RGB8UI: int
-    RG8UI: int
-    R8UI: int
-    RGBA16UI: int
-    RGB16UI: int
-    RG16UI: int
-    R16UI: int
-    RGBA32UI: int
-    RGB32UI: int
-    RG32UI: int
-    R32UI: int
-    RGBA4: int
-    RGB5_A1: int
-    RGB565: int
-    RGB10_A2: int
-    RGB10_A2UI: int
-    R11F_G11F_B10F: int
-    SRGB8_ALPHA8: int
-    DEPTH_COMPONENT16: int
-    DEPTH_COMPONENT24: int
-    DEPTH_COMPONENT32F: int
-    DEPTH24_STENCIL8: int
-    DEPTH32F_STENCIL8: int
-    STENCIL_INDEX8: int
+    RGBA8 = t.cast(int, ...)
+    RGB8 = t.cast(int, ...)
+    RG8 = t.cast(int, ...)
+    R8 = t.cast(int, ...)
+    RGBA16 = t.cast(int, ...)
+    RGB16 = t.cast(int, ...)
+    RG16 = t.cast(int, ...)
+    R16 = t.cast(int, ...)
+    RGBA16F = t.cast(int, ...)
+    RGB16F = t.cast(int, ...)
+    RG16F = t.cast(int, ...)
+    R16F = t.cast(int, ...)
+    RGBA32F = t.cast(int, ...)
+    RGB32F = t.cast(int, ...)
+    RG32F = t.cast(int, ...)
+    R32F = t.cast(int, ...)
+    RGBA8I = t.cast(int, ...)
+    RGB8I = t.cast(int, ...)
+    RG8I = t.cast(int, ...)
+    R8I = t.cast(int, ...)
+    RGBA16I = t.cast(int, ...)
+    RGB16I = t.cast(int, ...)
+    RG16I = t.cast(int, ...)
+    R16I = t.cast(int, ...)
+    RGBA32I = t.cast(int, ...)
+    RGB32I = t.cast(int, ...)
+    RG32I = t.cast(int, ...)
+    R32I = t.cast(int, ...)
+    RGBA8UI = t.cast(int, ...)
+    RGB8UI = t.cast(int, ...)
+    RG8UI = t.cast(int, ...)
+    R8UI = t.cast(int, ...)
+    RGBA16UI = t.cast(int, ...)
+    RGB16UI = t.cast(int, ...)
+    RG16UI = t.cast(int, ...)
+    R16UI = t.cast(int, ...)
+    RGBA32UI = t.cast(int, ...)
+    RGB32UI = t.cast(int, ...)
+    RG32UI = t.cast(int, ...)
+    R32UI = t.cast(int, ...)
+    RGBA4 = t.cast(int, ...)
+    RGB5_A1 = t.cast(int, ...)
+    RGB565 = t.cast(int, ...)
+    RGB10_A2 = t.cast(int, ...)
+    RGB10_A2UI = t.cast(int, ...)
+    R11F_G11F_B10F = t.cast(int, ...)
+    SRGB8_ALPHA8 = t.cast(int, ...)
+    DEPTH_COMPONENT16 = t.cast(int, ...)
+    DEPTH_COMPONENT24 = t.cast(int, ...)
+    DEPTH_COMPONENT32F = t.cast(int, ...)
+    DEPTH24_STENCIL8 = t.cast(int, ...)
+    DEPTH32F_STENCIL8 = t.cast(int, ...)
+    STENCIL_INDEX8 = t.cast(int, ...)
 
-class Attachment(enum.IntEnum):
-    DEPTH_ATTACHMENT: int
-    STENCIL_ATTACHMENT: int
-    DEPTH_STENCIL_ATTACHMENT: int
+class AttachmentPoint(enum.IntEnum):
+    DEPTH_ATTACHMENT = t.cast(int, ...)
+    STENCIL_ATTACHMENT = t.cast(int, ...)
+    DEPTH_STENCIL_ATTACHMENT = t.cast(int, ...)
 
-class RenderbufferAttachment:
-    width: int
-    height: int
-    format: int
-    attachment: int
-    samples: int
-    is_writable: bool
-    is_readable: bool
-
-    def __init__(self,
-                 width: int,
-                 height: int,
-                 format: AttachmentFormat,
-                 attachment: Attachment | int,
-                 samples: int = 1,
-                 writable: bool = True,
-                 readable: bool = True) -> None: ...
-
-    @property
-    def is_multisampled(self) -> bool: ...
-
-    @property
-    def is_depth_attachment(self) -> bool: ...
-
-    @property
-    def size(self) -> tuple[int, int]: ...
-
-class TextureAttachment:
+class FramebufferAttachment:
     width: int
     height: int
     format: int
@@ -99,46 +73,50 @@ class TextureAttachment:
     samples: int
     min_filter: int
     mag_filter: int
+    use_renderbuffer: bool
     is_writable: bool
-    is_readable: bool
 
     def __init__(self,
                  width: int,
                  height: int,
                  format: AttachmentFormat,
-                 attachment: Attachment | int,
+                 attachment: AttachmentPoint | int,
                  samples: int = 1,
-                 min_filter: MinFilter = MinFilter.LINEAR,
-                 mag_filter: MagFilter = MagFilter.LINEAR,
-                 writable: bool = True,
-                 readable: bool = True) -> None: ...
+                 min_filter: MinFilter = MinFilter.NEAREST,
+                 mag_filter: MagFilter = MagFilter.NEAREST,
+                 use_renderbuffer: bool = False,
+                 is_writable: bool = True) -> None: ...
 
     @property
-    def is_multisampled(self) -> bool: ...
+    def is_resizable(self) -> bool: ...
 
     @property
     def is_depth_attachment(self) -> bool: ...
 
     @property
-    def size(self) -> tuple[int, int]: ...
+    def is_color_attachment(self) -> bool: ...
 
-TAttachment = TextureAttachment | RenderbufferAttachment
-
-class Framebuffer:
-    def __init__(self, attachments: t.Sequence[TAttachment], width: int, height: int) -> None: ...
-
-    def bind(self) -> None: ...
-    def unbind(self) -> None: ...
-    def delete(self) -> None: ...
-    def resize(self, width: int, height: int) -> None: ...
-    def get_attachment_id(self, attachment: Attachment | int) -> int: ...
-    # TODO Add missing framebuffer functions
-    # def clear(self, r: float, g: float, b: float, a: float) -> None: ...
-    # def read_attachment(self, attachment: Attachment | int, buffer: TSupportsBuffer) -> None: ...
-    # def read_pixel(self, attachment: Attachment | int, x: int, y: int) -> tuple[int, ...]: ...
+    @property
+    def is_multisampled(self) -> bool: ...
 
     @property
     def size(self) -> tuple[int, int]: ...
+
+    @size.setter
+    def size(self, value: tuple[int, int]) -> None: ...
+
+class Framebuffer:
+    def __init__(self, attachments: list[FramebufferAttachment], width: int, height: int) -> None: ...
+    def delete(self) -> None: ...
+    def bind(self) -> None: ...
+    def unbind(self) -> None: ...
+    def resize(self, width: int, height: int, /) -> None: ...
+    def get_attachment(self, attachment_point: AttachmentPoint | int, /) -> FramebufferAttachment: ...
+    def get_attachment_id(self, attachment_point: AttachmentPoint | int, /) -> int: ...
+    def clear_color_attachment(self, clear_value: TSupportsBuffer, draw_buffer: int, value_type: GLType, /) -> None: ...
+    def clear_depth_attachment(self, depth_value: float, /) -> None: ...
+    def clear_stencil_attachment(self, stencil_value: int, /) -> None: ...
+    def clear_depth_stencil_attachment(self, depth_value: float, stencil_value: int, /) -> None: ...
 
     @property
     def id(self) -> int: ...
@@ -150,4 +128,7 @@ class Framebuffer:
     def height(self) -> int: ...
 
     @property
-    def specs(self) -> list[TAttachment]: ...
+    def size(self) -> tuple[int, int]: ...
+
+    @property
+    def attachments_count(self) -> int: ...
