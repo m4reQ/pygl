@@ -160,13 +160,11 @@ class PixelType(enum.IntEnum):
 
 class TextureSwizzle(enum.IntEnum):
     RED = t.cast(int, ...)
-    RG = t.cast(int, ...)
-    RGB = t.cast(int, ...)
-    BGR = t.cast(int, ...)
-    RGBA = t.cast(int, ...)
-    BGRA = t.cast(int, ...)
-    DEPTH_COMPONENT = t.cast(int, ...)
-    STENCIL_INDEX = t.cast(int, ...)
+    GREEN = t.cast(int, ...)
+    BLUE = t.cast(int, ...)
+    ALPHA = t.cast(int, ...)
+    ONE = t.cast(int, ...)
+    ZERO = t.cast(int, ...)
 
 class TextureSpec:
     target: int

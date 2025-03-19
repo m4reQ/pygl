@@ -31,11 +31,12 @@ static int init(PyTextureUploadInfo *self, PyObject *args, PyObject *kwargs)
     self->generateMipmap = true;
 
     if (!PyArg_ParseTupleAndKeywords(
-            args, kwargs, "Iii|iiiiiIinp", kwNames,
+            args, kwargs, "Iii|iiiiiiIinp", kwNames,
             &self->format,
             &self->width, &self->height, &self->depth,
             &self->xOffset, &self->yOffset, &self->zOffset,
             &self->level,
+            &self->alignment,
             &self->pixelType,
             &self->imageSize, &self->dataOffset,
             &self->generateMipmap))
@@ -46,7 +47,7 @@ static int init(PyTextureUploadInfo *self, PyObject *args, PyObject *kwargs)
 
 PyTypeObject pyTextureUploadInfoType = {
     PyVarObject_HEAD_INIT(NULL, 0)
-    .tp_flags = Py_TPFLAGS_DEFAULT,
+        .tp_flags = Py_TPFLAGS_DEFAULT,
     .tp_new = PyType_GenericNew,
     .tp_name = "pygl.textures.TextureUploadInfo",
     .tp_basicsize = sizeof(PyTextureUploadInfo),
