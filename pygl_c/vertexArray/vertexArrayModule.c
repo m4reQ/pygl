@@ -3,9 +3,15 @@
 #include "vertexArray.h"
 #include "../module.h"
 
+static PyObject *bind_default(PyObject *self, PyObject *args)
+{
+    glBindVertexArray(0);
+    Py_RETURN_NONE;
+}
+
 static EnumDef attribTypeEnum = {
     .enumName = "AttribType",
-    .values = (EnumValue[]) {
+    .values = (EnumValue[]){
         {"FLOAT", GL_FLOAT},
         {"HALF_FLOAT", GL_HALF_FLOAT},
         {"DOUBLE", GL_DOUBLE},
@@ -22,15 +28,22 @@ static ModuleInfo modInfo = {
     .def = {
         PyModuleDef_HEAD_INIT,
         .m_name = "pygl.vertex_array",
-        .m_size = -1},
-    .enums = (EnumDef*[]) {
+        .m_size = -1,
+        .m_methods = (PyMethodDef[]){
+            {"bind_default", bind_default, METH_NOARGS, NULL},
+            {0},
+        },
+    },
+    .enums = (EnumDef *[]){
         &attribTypeEnum,
-        NULL},
-    .types = (PyTypeObject*[]) {
+        NULL,
+    },
+    .types = (PyTypeObject *[]){
         &pyVertexInputType,
         &pyVertexDescriptorType,
         &pyVertexArrayType,
-        NULL},
+        NULL,
+    },
 };
 
 PyMODINIT_FUNC PyInit_vertex_array()

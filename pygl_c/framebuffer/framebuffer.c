@@ -161,6 +161,9 @@ static PyObject *resize(PyFramebuffer *self, PyObject *args)
     self->width = width;
     self->height = height;
 
+    // make sure framebuffer is not bound cause it might break on some drivers
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
     delete_framebuffer_contents(self);
     glCreateFramebuffers(1, &self->id);
     recreate_attachments(self, true);

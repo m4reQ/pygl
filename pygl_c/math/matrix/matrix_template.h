@@ -385,7 +385,7 @@ static int get_buffer(_SELF, Py_buffer *buffer, int flags)
     {
         ndim = 2;
         shape = (Py_ssize_t[]){MAT_LEN, MAT_LEN};
-        strides = (Py_ssize_t[]){sizeof(float), 4 * sizeof(float)};
+        strides = (Py_ssize_t[]){sizeof(float), MAT_LEN * sizeof(float)};
     }
 
     *buffer = (Py_buffer){
@@ -562,7 +562,7 @@ static PyObject *class_length(PyTypeObject *cls, PyObject *Py_UNUSED(args))
 
 PyTypeObject _PY_TYPE = {
     PyVarObject_HEAD_INIT(NULL, 0)
-    .tp_new = PyType_GenericNew,
+        .tp_new = PyType_GenericNew,
     .tp_flags = Py_TPFLAGS_DEFAULT,
     .tp_basicsize = sizeof(_TYPE),
     .tp_name = "pygl.math.Matrix" STRINGIFY(MAT_LEN),

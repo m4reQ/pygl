@@ -20,30 +20,27 @@ static PyObject *wait(PySync *self, PyObject *args, PyObject *kwargs)
     static char *kwNames[] = {"timeout", NULL};
 
     if (self->sync == NULL)
-        Py_RETURN_NONE;
+        Py_RETURN_TRUE;
 
     GLuint64 timeout = 0;
     if (!PyArg_ParseTupleAndKeywords(args, kwargs, "|K", kwNames, &timeout))
         return NULL;
 
+    GLenum waitState;
     if (timeout == 0)
     {
         wait_indefinitely(self->sync);
+        waitState = GL_CONDITION_SATISFIED;
     }
     else
     {
         GLenum waitState = glClientWaitSync(self->sync, GL_SYNC_FLUSH_COMMANDS_BIT, timeout);
-        THROW_IF(
-            !SYNC_SIGNALED(waitState),
-            PyExc_RuntimeError,
-            "Sync timeout expired.",
-            NULL);
     }
 
     glDeleteSync(self->sync);
     self->sync = NULL;
 
-    Py_RETURN_NONE;
+    return PyBool_FromLong(SYNC_SIGNALED(waitState));
 }
 
 static PyObject *set(PySync *self, PyObject *Py_UNUSED(args))
@@ -60,6 +57,16 @@ static PyObject *delete(PySync *self, PyObject *Py_UNUSED(args))
     self->sync = NULL;
 
     Py_RETURN_NONE;
+}
+
+static PyObject *is_signaled(PySync *self, PyObject *args)
+{
+    (void)args;
+
+    GLint syncStatus;
+    glGetSynciv(self->sync, GL_SYNC_STATUS, 1, NULL, &syncStatus);
+
+    return PyBool_FromLong(syncStatus == GL_SIGNALED);
 }
 
 static void dealloc(PySync *self)
@@ -79,6 +86,7 @@ PyTypeObject pySyncType = {
         {"set", (PyCFunction)set, METH_NOARGS, NULL},
         {"wait", (PyCFunction)wait, METH_VARARGS | METH_KEYWORDS, NULL},
         {"delete", (PyCFunction) delete, METH_NOARGS, NULL},
+        {"is_signaled", (PyCFunction)is_signaled, METH_NOARGS, NULL},
         {0},
     },
 };
